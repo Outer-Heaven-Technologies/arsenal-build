@@ -1,0 +1,6 @@
+{
+  "name": "arsenal-build",
+  "version": "0.1.0",
+  "description": "Outer Heaven build pipeline: anchor-files → per-phase design + feature execution (web + iOS) → landing. Consumes planning artifacts produced by arsenal-planning (or any equivalent source) and writes real code with atomic commits and PRs.",
+  "license": "AGPL-3.0-or-later"
+}
