@@ -1,6 +1,6 @@
 ---
 name: dispatch-parallel
-description: Fans out 2–5 genuinely independent investigations to parallel investigator subagents, then reconciles their results into a single SUMMARY.md. For read-only fan-outs only — audits, debug sessions, code analysis, exploratory checks where each investigation targets disjoint files/subsystems and results don't depend on each other. Does NOT call `run-task-{web,ios}` (those handle code changes sequentially); when investigations recommend follow-up code work, the SUMMARY points the user at run-task. Triggers on "investigate these in parallel", "fan out on these issues", "run these checks concurrently", "audit X, Y, and Z separately". Does NOT auto-fire on "build phase N" or "fix this bug" (single-bug → arsenal-build:debug or a regular task). Hard refuse at 6+; refuse-with-suggestion at 1. Idempotent by default; `--force` regenerates already-completed investigations.
+description: Fans out 2–5 genuinely independent investigations to parallel investigator subagents, then reconciles their results into a single SUMMARY.md. For read-only fan-outs only — audits, debug sessions, code analysis, exploratory checks where each investigation targets disjoint files/subsystems and results don't depend on each other. Does NOT call `run-task-*` (those handle code changes sequentially); when investigations recommend follow-up code work, the SUMMARY points the user at run-task. Triggers on "investigate these in parallel", "fan out on these issues", "run these checks concurrently", "audit X, Y, and Z separately". Does NOT auto-fire on "build phase N" or "fix this bug" (single-bug → arsenal-build:debug or a regular task). Hard refuse at 6+; refuse-with-suggestion at 1. Idempotent by default; `--force` regenerates already-completed investigations.
 ---
 
 # Dispatch Parallel
@@ -14,9 +14,9 @@ The skill's value is the **independence gate** (Step 2) and the **reconciliation
 | Investigation count N | Behavior |
 |---|---|
 | N = 0 | Reject input parsing. Tell the caller no investigations were provided. |
-| N = 1 | **Refuse with suggestion.** One investigation isn't parallel — recommend `/arsenal-build:run-task-{web,ios}` for code-change work, or dispatch a single investigator inline outside this skill. dispatch-parallel is for N ≥ 2. |
+| N = 1 | **Refuse with suggestion.** One investigation isn't parallel — recommend `/arsenal-build:run-task-*` for code-change work, or dispatch a single investigator inline outside this skill. dispatch-parallel is for N ≥ 2. |
 | 2 ≤ N ≤ 5 | **Normal case.** Run the independence gate, then dispatch. |
-| N ≥ 6 | **Hard refuse.** Reconciliation cost on >5 results exceeds parallel benefit, and the user is likely modeling the wrong problem — recommend `/arsenal-build:features-{web,ios}` with a TASKS.md phase instead. |
+| N ≥ 6 | **Hard refuse.** Reconciliation cost on >5 results exceeds parallel benefit, and the user is likely modeling the wrong problem — recommend `/arsenal-build:features` with a TASKS.md phase instead. |
 
 Per-investigation idempotence: if `.tasks/parallel/<run-id>/investigation-{N}-result.md` already exists at the canonical path, that investigation is skipped with status `SKIPPED — result exists` unless `--force` is set.
 
@@ -60,9 +60,9 @@ The gate runs at Step 2 before any dispatch. It is the whole point of this skill
 
 ## Composition (and explicit non-composition with run-task)
 
-This skill does NOT call `run-task-{web,ios}`. Investigations are read-only; run-task requires a TASKS.md phase block, pre-generated briefs, a phase branch, and ends with an atomic commit + `[x]` flip. Forcing dispatch-parallel to compose with run-task would mean synthesizing all of that for every read-only audit — heavy machinery without value.
+This skill does NOT call `run-task-*`. Investigations are read-only; run-task requires a TASKS.md phase block, pre-generated briefs, a phase branch, and ends with an atomic commit + `[x]` flip. Forcing dispatch-parallel to compose with run-task would mean synthesizing all of that for every read-only audit — heavy machinery without value.
 
-For fixing things investigations find: the SUMMARY's "Next steps" block points the user at `/arsenal-build:run-task-{web,ios}` (sequential, one fix at a time) or `/arsenal-build:features-{web,ios}` (model as a phase). The connection is filesystem + user judgment, not direct invocation.
+For fixing things investigations find: the SUMMARY's "Next steps" block points the user at `/arsenal-build:run-task-*` (sequential, one fix at a time) or `/arsenal-build:features` (model as a phase). The connection is filesystem + user judgment, not direct invocation.
 
 The investigator subagent CAN call other read-only tools — including `impeccable:audit`, `impeccable:critique`, `claude-in-chrome`, `firecrawl`, `WebSearch`, etc. — when the investigation description warrants them. The investigator-prompt template lists these as available without forcing their use.
 
@@ -153,9 +153,9 @@ The template has bracketed placeholders. Substitute every one before dispatch �
 ## Anti-patterns — never do these
 
 - **Don't dispatch parallel when the work isn't genuinely independent.** The triadic test is the whole skill's value. Failing the gate and refusing is the success case for the dependent-work scenario, not a defect.
-- **Don't exceed 5 parallel investigations.** Hard cap. Beyond 5, reconciliation cost outpaces parallel benefit AND the user is probably modeling the wrong problem — they likely want a TASKS.md phase via `/arsenal-build:features-{web,ios}`.
+- **Don't exceed 5 parallel investigations.** Hard cap. Beyond 5, reconciliation cost outpaces parallel benefit AND the user is probably modeling the wrong problem — they likely want a TASKS.md phase via `/arsenal-build:features`.
 - **Don't accumulate investigator context in this skill's own context.** Reconciliation reads only the `Files touched` line and `Recommendations` section. Full content stays in `.tasks/parallel/<run-id>/`. Reading everything defeats the filesystem hand-off pattern (same discipline as `generate-design-briefs` / `generate-feature-briefs`).
-- **Don't dispatch fix subagents from this skill.** Investigations report. Fixes are sequential — that's `/arsenal-build:run-task-{web,ios}`. The SUMMARY recommends fix follow-ups; the user invokes them explicitly.
+- **Don't dispatch fix subagents from this skill.** Investigations report. Fixes are sequential — that's `/arsenal-build:run-task-*`. The SUMMARY recommends fix follow-ups; the user invokes them explicitly.
 - **Don't pause inside the skill for conflict resolution.** When investigations contradict each other, the SUMMARY flags the conflict in a `## Conflicts requiring user resolution` section and the skill exits cleanly. Same J3 pattern as close-phase: surface + recommend + exit; never act unilaterally.
 - **Don't re-run an investigation without `--force`.** Mirrors L1 (briefs) and M1 (tasks). Default skip if `investigation-{N}-result.md` already exists at the canonical path.
 
@@ -163,10 +163,10 @@ The template has bracketed placeholders. Substitute every one before dispatch �
 
 | Skill | Relationship |
 |---|---|
-| `/arsenal-build:run-task-{web,ios}` | **Downstream, not direct dispatch.** When investigations recommend code changes, the SUMMARY's "Next steps" points the user at run-task for sequential fix execution. No direct invocation from this skill. |
-| `/arsenal-build:features-{web,ios}` | **Downstream.** When investigations reveal a pattern-spanning need (e.g., audit reveals 6 files need the same refactor), the SUMMARY recommends modeling as a TASKS.md phase via the orchestrator. |
+| `/arsenal-build:run-task-*` | **Downstream, not direct dispatch.** When investigations recommend code changes, the SUMMARY's "Next steps" points the user at run-task for sequential fix execution. No direct invocation from this skill. |
+| `/arsenal-build:features` | **Downstream.** When investigations reveal a pattern-spanning need (e.g., audit reveals 6 files need the same refactor), the SUMMARY recommends modeling as a TASKS.md phase via the orchestrator. |
 | `/arsenal-build:expand-phase` | **Indirect.** Investigations that produce a list of remediation tasks may motivate a `--force` re-expansion of a TASKS.md phase. The user makes that call after reading SUMMARY. |
-| `/arsenal-build:close-phase-{web,ios}` Gate 1 | **Pattern parallel.** Both skills follow the "surface + recommend + exit" pattern (J3 contract) when faced with a decision the skill shouldn't make unilaterally. |
+| `/arsenal-build:close-phase-*` Gate 1 | **Pattern parallel.** Both skills follow the "surface + recommend + exit" pattern (J3 contract) when faced with a decision the skill shouldn't make unilaterally. |
 | `arsenal-build:debug` (future, not yet shipped) | **Future composition candidate.** When `arsenal-build:debug` exists, dispatch-parallel could call it as the investigator for single-bug investigations. Until then, the bespoke `investigator-prompt.md` handles all investigation types. |
 | `impeccable` (specifically `:audit` and `:critique`) | **Available to investigator subagents.** When the investigation description says "audit X" or "critique Y", the investigator subagent can invoke `impeccable:audit <surface>` or `impeccable:critique <surface>` against that target. The prompt template lists these as available; the subagent decides when to invoke them based on the investigation framing. |
 | `mcp__claude-in-chrome`, `mcp__firecrawl`, `WebSearch` | **Available to investigators.** Investigations that need live-browser inspection or web research get these through the investigator subagent's tool allowlist. |

@@ -1,13 +1,13 @@
 ---
 name: generate-feature-briefs
-description: Writes per-task context briefs for every `domain: feature` task in a phase. The brief (≤3,000 tokens / ~12,000 chars) carries the task description plus scope-relevant excerpts from the feature spec, ARCHITECTURE, CONVENTIONS, DESIGN_SYSTEM component cites, and the **available component paths** the feature task may wire to (read-only inputs committed earlier in the phase by the design pipeline). Does NOT call impeccable. Does NOT write design briefs. Invoked by `features-web` and `features-ios` after the design pipeline closes its half of the phase; can be invoked directly to regenerate feature briefs for a phase whose feature spec or architecture changed. Idempotent by default; `--force` regenerates.
+description: Writes per-task context briefs for every `domain: feature` task in a phase. The brief (≤3,000 tokens / ~12,000 chars) carries the task description plus scope-relevant excerpts from the feature spec, ARCHITECTURE, CONVENTIONS, DESIGN_SYSTEM component cites, and the **available component paths** the feature task may wire to (read-only inputs committed earlier in the phase by the design pipeline). Does NOT call impeccable. Does NOT write design briefs. Invoked by `features` after the design pipeline closes its half of the phase; can be invoked directly to regenerate feature briefs for a phase whose feature spec or architecture changed. Idempotent by default; `--force` regenerates.
 ---
 
 # Generate Feature Briefs
 
-Generate the per-task context briefs that downstream `run-task-feature-{web,ios}` subagents read. Briefs are the filesystem hand-off — this skill writes them to disk; the controller never reads brief contents after this skill reports DONE.
+Generate the per-task context briefs that downstream `run-task-feature` subagents read. Briefs are the filesystem hand-off — this skill writes them to disk; the controller never reads brief contents after this skill reports DONE.
 
-This skill is normally invoked by `features-{web,ios}` after `close-design-phase-{web,ios}` has committed the phase's visual components. It can also be invoked directly to regenerate feature briefs for a phase whose feature spec, ARCHITECTURE, or available-components set changed after the original generation — `--force` regenerates; default is idempotent.
+This skill is normally invoked by `features` after `close-design-phase` has committed the phase's visual components. It can also be invoked directly to regenerate feature briefs for a phase whose feature spec, ARCHITECTURE, or available-components set changed after the original generation — `--force` regenerates; default is idempotent.
 
 ## Paths
 
@@ -39,7 +39,6 @@ This skill only processes tasks tagged `domain: feature`. Design-domain tasks ar
 Caller passes:
 
 - `--phase <N>` — phase number (required)
-- `--surface web|ios` — surface flag (required), governs which conventions excerpts the brief carries
 - `--task <N>` — optional. Generate the brief only for the named task. When omitted, brief every `domain: feature` task in the phase that doesn't already have a context brief on disk (or every feature task if `--force`).
 - `--force` — optional. Regenerate briefs even when files already exist.
 
@@ -52,7 +51,7 @@ Files read from disk (read-only):
 - `docs/DESIGN_SYSTEM.md` — primitive cites by `§ X.Y` for components this task wires to; never paste content, only cite. Also read for the project's component-path convention (e.g., `components/ui/`).
 - **Available component paths** — components this task may wire to. Source in priority order:
   1. Git log on the current phase branch (`git log <phase-base>..HEAD -- 'components/**'` or similar) to enumerate paths the design pipeline committed earlier this phase.
-  2. If git history isn't reliable (mid-refactor, no merge base resolved), fall back to a `find components -name '*.{tsx,jsx,vue,svelte,swift}'` style enumeration scoped to the project's declared component root.
+  2. If git history isn't reliable (mid-refactor, no merge base resolved), fall back to a `find components -name '*.{tsx,jsx,vue,svelte}'` style enumeration scoped to the project's declared component root.
   3. If neither yields anything, note the section as `_No design-pipeline components committed yet for this phase._` and proceed — the implementer will BLOCK if it tries to wire to a missing component.
 
 Files written:
@@ -79,7 +78,7 @@ For each task in the subsection (or just `--task <N>` if specified):
 Once per phase invocation (not per task), build the list of available component paths the feature pipeline may wire to:
 
 1. Identify the phase branch's merge base (typically `main`).
-2. List paths under the project's declared component root committed since the merge base. The convention is `components/ui/` and `components/shell/` (web) or the project's view-layer module (iOS) — read DESIGN_SYSTEM.md's declared path if defined; otherwise default to `components/` for web and the iOS project's `Views/` or equivalent.
+2. List paths under the project's declared component root committed since the merge base. The convention is `components/ui/` and `components/shell/` — read DESIGN_SYSTEM.md's declared path if defined; otherwise default to `components/`.
 3. Group paths by component for readability (e.g., `Hero.tsx`, `EmailCaptureForm.tsx`).
 
 Cache this list across all feature tasks in the phase — every task's context brief references the same available-component manifest.
@@ -110,20 +109,19 @@ Once all in-scope feature tasks have been briefed (or skipped via L1), report:
 
 - **Status:** DONE | NEEDS_EXPANSION (phase has placeholder feature-task line) | TASK_TOO_BIG (cite which task exceeded budget) | NEEDS_CONTEXT
 - **Phase:** N
-- **Surface:** web | ios
 - **Feature tasks processed:** count
 - **Context briefs written:** count
 - **Skipped (L1 idempotence):** count, with task IDs
 - **Available components manifest:** count of design-pipeline-committed components included in briefs (or `empty — design pipeline has not run for this phase`)
 
-The caller's next step is to execute each feature task via `run-task-feature-{web,ios}`; this skill does not run tasks itself.
+The caller's next step is to execute each feature task via `run-task-feature`; this skill does not run tasks itself.
 
 ## Anti-patterns — never do these
 
 - **Don't write design briefs.** This skill writes only context briefs. Design briefs are the design pipeline's concern (`generate-design-briefs`).
 - **Don't process design-domain tasks.** Locate the `### Feature tasks` subsection and stay within it. A misplaced task (e.g., `domain: design` appearing under `### Feature tasks`) is a defect — flag it, don't silently brief it.
 - **Don't call impeccable.** Feature briefs are about data, architecture, and component-wiring. Impeccable is the design pipeline's tool. If a feature task seems to need design judgement, it was misclassified — surface to the user and don't brief it.
-- **Don't read brief contents after writing them.** This skill confirms the file exists and reports DONE. Downstream `run-task-feature-{web,ios}` subagents read briefs by path. Accumulating brief contents in this skill's context defeats the filesystem hand-off pattern.
+- **Don't read brief contents after writing them.** This skill confirms the file exists and reports DONE. Downstream `run-task-feature` subagents read briefs by path. Accumulating brief contents in this skill's context defeats the filesystem hand-off pattern.
 - **Don't regenerate briefs without `--force`.** Default behavior is idempotent per L1: skip per-task if the context-brief file already exists. Silent regeneration clobbers any hand-tuned briefs.
 - **Don't paste full canonical docs into briefs.** The 3k-token budget is a forcing function. If you can't fit the task within budget, the task is too big — report `TASK_TOO_BIG` and recommend re-expansion.
 - **Don't omit the available-components manifest.** Every feature brief includes the section, even if empty. The implementer needs to know what surfaces it may wire to and which boundary rules apply.
@@ -132,9 +130,8 @@ The caller's next step is to execute each feature task via `run-task-feature-{we
 
 | Skill | Relationship |
 |---|---|
-| `/arsenal-build:features-web` | Invokes this skill at Step 2 with `--surface web` after `close-design-phase-web` returns. Hand-off: phase number, surface flag. |
-| `/arsenal-build:features-ios` | Same, with `--surface ios`. |
+| `/arsenal-build:features` | Invokes this skill at Step 2 after `close-design-phase` returns. Hand-off: phase number. |
 | `/arsenal-build:expand-phase` | Runs **before** this skill (via the orchestrator). Writes the concrete tagged task list with `domain:` tags this skill reads from `TASKS.md`. |
 | `/arsenal-build:generate-design-briefs` | Sibling skill. Runs **before** this skill in the phase (during the design half of the pipeline). Writes context + design briefs for design-domain tasks. This skill never touches those tasks. |
-| `/arsenal-build:run-task-feature-web` / `/arsenal-build:run-task-feature-ios` | Runs **after** this skill, per task. Reads briefs from `.tasks/phase-{N}/` by path. |
-| `/arsenal-build:close-design-phase-web` / `/arsenal-build:close-design-phase-ios` | Runs **before** this skill in the phase pipeline. Commits the components this skill manifests as available inputs. |
+| `/arsenal-build:run-task-feature` | Runs **after** this skill, per task. Reads briefs from `.tasks/phase-{N}/` by path. |
+| `/arsenal-build:close-design-phase` | Runs **before** this skill in the phase pipeline. Commits the components this skill manifests as available inputs. |

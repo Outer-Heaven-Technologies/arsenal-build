@@ -5,7 +5,7 @@ description: Consolidates upstream planning artifacts (FEATURES, UX, DESIGN, moc
 
 # Execute Anchor Files
 
-Consolidate upstream planning into the **agent reference layer** that anchors every downstream session: `CLAUDE.md` at root, plus `docs/ARCHITECTURE.md`, `docs/CONVENTIONS.md`, `docs/DESIGN_SYSTEM.md`, `docs/TASKS.md`. These files are read by every Claude session opening the project and sliced by the brief generators that drive `design-{web,ios}` and `features-{web,ios}`.
+Consolidate upstream planning into the **agent reference layer** that anchors every downstream session: `CLAUDE.md` at root, plus `docs/ARCHITECTURE.md`, `docs/CONVENTIONS.md`, `docs/DESIGN_SYSTEM.md`, `docs/TASKS.md`. These files are read by every Claude session opening the project and sliced by the brief generators that drive `design` and `features`.
 
 This is not "generate docs." It's "design the structured reference surface that every downstream agent reads from for the lifetime of the project."
 
@@ -26,7 +26,7 @@ Tracked artifacts use these default locations (override via `.arsenal/config.yam
 
 ## Role
 
-- **Bridge** between planning (`arsenal-planning` skills family) and execution (`design-*` / `features-*`).
+- **Bridge** between planning (`arsenal-planning` skills family) and execution (`design` / `features`).
 - **Anchor** for every Claude session — `CLAUDE.md` is the load-bearing index; the rest are sliced by brief generators.
 - **Consolidator, not generator.** Upstream artifacts own their content; this skill cross-references, never restates.
 
@@ -37,7 +37,7 @@ This skill refuses to run when required upstream artifacts are missing. The buil
 | Artifact | Required for | If missing |
 |---|---|---|
 | `planning/FEATURES.md` or `planning/features/` | All projects | Stop. *"Run `features` first — `anchor-files` consolidates feature specs into ARCHITECTURE.md and TASKS.md; can't proceed without them."* |
-| `docs/UX.md` | UI projects only | Stop. *"Run `ux-{web,app,ios}` first — `anchor-files` consolidates the page/screen inventory into TASKS.md and DESIGN_SYSTEM.md."* |
+| `docs/UX.md` | UI projects only | Stop. *"Run `ux-{web,app}` first — `anchor-files` consolidates the page/screen inventory into TASKS.md and DESIGN_SYSTEM.md."* |
 | `docs/DESIGN.md` | UI projects only | Stop. *"Run `design` first — `anchor-files` consolidates brand tokens into DESIGN_SYSTEM.md."* |
 | `planning/MVP_SPEC.md` | Optional context | Read if present; skip if not. No prompt. |
 | `docs/mockups/` | Recommended for UI | Soft prompt: *"No mockups detected. The design pipeline is substantially stronger when concrete mockups are present. Run `mockups` to generate two-pass anchor briefs, then feed each into Claude Design / Stitch / Open Design / v0 and save outputs to `docs/mockups/`. Continuing without?"* |
@@ -83,25 +83,24 @@ If `MVP_SPEC.md` is present, read it for strategic context (target user, value l
 
 Determine surface from upstream `UX.md` content or stack hints:
 
-- **Web (marketing/site)** → `ux-web` was upstream
-- **Web (app, authenticated)** → `ux-app` was upstream
-- **iOS (native)** → `ux-ios` was upstream
+- **Web (marketing/site)** → `arsenal-planning:ux-web` was upstream
+- **Web (app, authenticated)** → `arsenal-planning:ux-app` was upstream
 - **Hybrid** → multiple UX docs or split `ux/` folder
 
-Surface drives CSS-vs-SwiftUI in `DESIGN_SYSTEM.md`, web-vs-iOS handoff phrasing in `TASKS.md`, and which stack-discovery questions apply.
+Surface drives which stack-discovery questions apply.
 
 ### Step 3: Stack discovery (gap-only)
 
-Ask **only** about stack-level decisions that upstream artifacts can't answer. Six to eight questions max. Skip any whose answer is obvious from context (existing `package.json`, `*.xcodeproj`, `Package.swift`, etc.).
+Ask **only** about stack-level decisions that upstream artifacts can't answer. Six to eight questions max. Skip any whose answer is obvious from context (existing `package.json`, etc.).
 
 **Stack:**
-- Framework? (Next.js / Astro / SwiftUI / Vite + React / Expo / etc.)
-- Styling? (Tailwind / CSS Modules / styled-components — web only)
-- Component library? (shadcn/ui / custom / none — web only)
+- Framework? (Next.js / Astro / Vite + React / etc.)
+- Styling? (Tailwind / CSS Modules / styled-components)
+- Component library? (shadcn/ui / custom / none)
 - Database / BaaS / CMS? (Postgres / Supabase / Sanity / Contentful / etc.) — skip database if CMS is the primary data layer
 - Auth? (Supabase Auth / NextAuth / Clerk / Sanity / custom)
-- State management? (TanStack Query / Zustand / Redux / `@Observable`) — skip for Astro static; iOS uses `@Observable`
-- Hosting? (Vercel / Cloudflare / Netlify / App Store)
+- State management? (TanStack Query / Zustand / Redux) — skip for Astro static
+- Hosting? (Vercel / Cloudflare / Netlify)
 - Key integrations? (Stripe / Resend / OpenAI / PostHog / etc.)
 
 **Project intent (drives Phase 0):**
@@ -121,9 +120,9 @@ System design only. Each section is self-contained — slicing target for `gener
 - **System Overview** — ASCII diagram of major components and their relationships
 - **Project Structure** — folder layout adapted to the framework
 - **Data Flow** — per major user journey, traced through the stack
-- **Schema** — full schema in code blocks (SQL / Swift `@Model` types / Sanity schema). Cross-reference `planning/features/<slug>.md § Data` for per-feature lifecycles; do not restate.
+- **Schema** — full schema in code blocks (SQL / Sanity schema). Cross-reference `planning/features/<slug>.md § Data` for per-feature lifecycles; do not restate.
 - **Integrations** — third-party services with env vars
-- **State Management** — strategy + query key conventions (web) or state architecture (iOS)
+- **State Management** — strategy + query key conventions
 - **MVP vs Post-MVP boundary** — what's intentionally excluded
 
 Cross-reference patterns (precise paths, not vague references):
@@ -136,13 +135,12 @@ Stack-specific code patterns only. Real code blocks, never descriptions of patte
 
 - **Core Development Philosophy** — KISS / YAGNI / Functional First, with good-vs-bad code examples
 - **Before Writing Any Code** — the load-bearing checklist (check TASKS.md scope; reference CONVENTIONS for patterns; no temporary workarounds like `// TODO: fix later`, `any` types "for now", or hardcoded values without constants; ask before major decisions)
-- **Patterns per Concern** — components, data fetching, mutations, forms, error handling (web); SwiftUI views, navigation, data flow, networking, Swift conventions (iOS)
+- **Patterns per Concern** — components, data fetching, mutations, forms, error handling
 - **Library Reference** — table with versions + docs links
 - **Anti-Patterns** — stack-specific don'ts
 
 Stack-specific guidance:
 - **Astro:** `.astro` component patterns, island hydration directives (`client:load`, `client:visible`, `client:idle`), content collections, Sanity GROQ queries if applicable, `<Image>` usage.
-- **Native iOS:** `@Observable` not `ObservableObject`, Swift Concurrency only (no Combine in new code), `final class` on `@Model` types, hex literal lockdown (theme module only), accessibility identifiers on new interactive views.
 
 #### `docs/DESIGN_SYSTEM.md` (UI projects only)
 
@@ -151,10 +149,10 @@ Stack-specific implementation of `docs/DESIGN.md`. **Never restates DESIGN.md's 
 Required sections:
 
 - **Source of Truth** (1 paragraph): brand tokens, typography, motion, voice live in `docs/DESIGN.md`. This file translates that spec into [stack]. **Do not edit `DESIGN.md` directly** — re-run `design` to update the brand.
-- **Token Map** — table mapping brand role → stack token. **No value restatement.** Example: `surface.canvas → --color-canvas` (web) or `surface.canvas → Colors.canvas` (iOS), not `surface.canvas → #FAFAFA → --color-canvas`. Readers cross-reference `DESIGN.md` when they need values.
+- **Token Map** — table mapping brand role → stack token. **No value restatement.** Example: `surface.canvas → --color-canvas`, not `surface.canvas → #FAFAFA → --color-canvas`. Readers cross-reference `DESIGN.md` when they need values.
 - **Components** — one entry per component named in UX.md's "Components needed" lists. Format: *"Brand rules: see `DESIGN.md` §X. Implementation: [stack-specific code/classes/modifiers/props]."*
 - **Mockups directory** — reference to `docs/mockups/` and how the design pipeline consumes them
-- **Accessibility patterns** — stack-specific (ARIA conventions on web; `accessibilityIdentifier` on iOS)
+- **Accessibility patterns** — ARIA conventions
 
 If any component named in UX.md isn't defined here, flag it for the user — never invent.
 
@@ -169,7 +167,7 @@ Phase scaffold and orchestrator state machine. Mutable. Predictable structure so
 ```markdown
 > **⚠️ CRITICAL:** Update this file after completing work. Mark tasks `[x]` when done.
 > **📦 Tasks expand on-demand:** Phase tasks are placeholders until you start work on the phase.
-> **🎨 Each phase splits design + feature:** Design tasks (hardcoded data) run first via `design-{web,ios}`; feature tasks (data wiring) run second via `features-{web,ios}`. Shared branch, one PR per phase. Design close completes before any feature task starts.
+> **🎨 Each phase splits design + feature:** Design tasks (hardcoded data) run first via `design`; feature tasks (data wiring) run second via `features`. Shared branch, one PR per phase. Design close completes before any feature task starts.
 > **🔒 Component boundary:** Once a design task commits a component, the feature pipeline may **extend** it (new props/variants/states the data layer needs) but never **redesign** it (visual treatment / spacing / typography / color / motion). Feature commits that extend a component must include a `Component extended:` note. Purely visual changes BLOCK with redirect to the design pipeline.
 > **📝 Spec amendment:** The feature pipeline may amend `planning/FEATURES.md` / `planning/features/*.md` in-line for **Tier 1** changes (additive/clarifying — missed state, edge case, threshold within same intent, missing dependency). Such commits carry a `Spec amended:` note. **Tier 2** changes (user-facing intent shifts) BLOCK and route back through `features`.
 ```
@@ -196,10 +194,10 @@ Phase scaffold and orchestrator state machine. Mutable. Predictable structure so
 **Goal:** [One sentence]
 
 ### Design tasks
-- [ ] Tasks not yet generated. Run `design-{web,ios} 1` to expand visual components from UX.md, DESIGN_SYSTEM.md, and mockups.
+- [ ] Tasks not yet generated. Run `design 1` to expand visual components from UX.md, DESIGN_SYSTEM.md, and mockups.
 
 ### Feature tasks
-- [ ] Tasks not yet generated. Run `features-{web,ios} 1` to expand data-wiring tasks. Runs after design close.
+- [ ] Tasks not yet generated. Run `features 1` to expand data-wiring tasks. Runs after design close.
 ```
 
 **Tail of file:**
@@ -238,15 +236,15 @@ Keep it tight. Every line is paid for in every session.
 mkdir -p docs/mockups
 ```
 
-For UI projects without existing mockups, surface the slot in the final report. Recommend Claude Design / Stitch / v0 / future `generate-mockups` (planned around `nexu-io/open-design`) before running `design-*`.
+For UI projects without existing mockups, surface the slot in the final report. Recommend Claude Design / Stitch / v0 / future `generate-mockups` (planned around `nexu-io/open-design`) before running `design`.
 
 ### Step 6: Review & handoff
 
 Final report:
 - **Files created** with line counts (`wc -l`). Flag any file exceeding its target.
 - **Upstream artifacts consumed** (which planning docs informed which sections)
-- **First phase to run** — `design-{web,ios} 1` or, for non-UI / pure feature-domain phases, `features-{web,ios} 1`
-- **Mockup status** — if `docs/mockups/` is empty for a UI project: *"Generate mockups in `docs/mockups/` before running `design-*`. Recommended tools: Claude Design, Stitch, v0."*
+- **First phase to run** — `design 1` or, for non-UI / pure feature-domain phases, `features 1`
+- **Mockup status** — if `docs/mockups/` is empty for a UI project: *"Generate mockups in `docs/mockups/` before running `design`. Recommended tools: Claude Design, Stitch, v0."*
 
 ## Anti-patterns
 
@@ -271,13 +269,13 @@ project-root/
 └── docs/
     ├── ARCHITECTURE.md
     ├── CONVENTIONS.md
-    ├── UX.md                     # from ux-* (UI projects)
+    ├── UX.md                     # from ux-{web,app} (UI projects)
     ├── ux/                       # split mode (UX.md is index)
     │   └── <page>.md per page
     ├── DESIGN.md                 # from design (UI projects, do-not-edit)
     ├── DESIGN_SYSTEM.md          # stack implementation of DESIGN.md (UI projects)
     ├── TASKS.md
-    └── mockups/                  # consumed by design-{web,ios}
+    └── mockups/                  # consumed by design
 ```
 
 ## Important guidelines

@@ -7,20 +7,15 @@
    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ```
 
-A Claude Code plugin. The execution half of the arsenal pipeline — takes planning artifacts and ships real code:
+A Claude Code plugin. The execution half of the arsenal pipeline for **web/frontend projects** (Next.js, Astro, Vite, Node, Python, etc.). Takes planning artifacts and ships real code:
 
 ```
 planning artifacts (FEATURES, UX, DESIGN, mockups, MVP_SPEC) → anchor-files → per-phase design + feature pipelines → landing page
 ```
 
-Each phase splits into **design tasks** (visual components, hardcoded data) and **feature tasks** (wire to real data). The two halves run sequentially on the same branch, share a single PR, and enforce a strict component boundary: the feature pipeline may extend components but never redesign them.
+Each phase splits into **design tasks** (visual components with hardcoded data) and **feature tasks** (wire components to real data). The two halves run sequentially on the same branch, share a single PR, and enforce a strict component boundary: the feature pipeline may extend components but never redesign them.
 
-Variants by surface:
-
-- **`design-web`** + **`features-web`** for web/frontend (Next.js, Astro, Vite, Node, Python, etc.).
-- **`design-ios`** + **`features-ios`** for native iOS (SwiftUI + Xcode + simulator-driven visual fidelity gate on the design pipeline).
-
-Pick the variant that matches your stack.
+For native iOS projects (SwiftUI + Xcode + simulator-driven visual fidelity gate), see [arsenal-build-io](https://github.com/Outer-Heaven-Technologies/arsenal-build-io).
 
 ## Install
 
@@ -48,12 +43,12 @@ ln -sfn ~/Dev/arsenal-build/skills ~/.claude/plugins/cache/arsenal-build/arsenal
 
 Two ways:
 
-1. **Slash command** — `/arsenal-build:anchor-files`, `/arsenal-build:design-web 1`, `/arsenal-build:features-ios 2`, etc.
+1. **Slash command** — `/arsenal-build:anchor-files`, `/arsenal-build:design 1`, `/arsenal-build:features 2`, etc.
 2. **Natural language** — Claude reads each skill's `description` and auto-fires:
    - "Set up the project anchor" → `arsenal-build:anchor-files`
-   - "Begin work on phase 1" → `arsenal-build:design-web` (design half first), then `arsenal-build:features-web` (feature half)
+   - "Begin work on phase 1" → `arsenal-build:design` (design half first), then `arsenal-build:features` (feature half)
 
-The orchestrators (`anchor-files`, `design-{web,ios}`, `features-{web,ios}`, `landing`) are the user-facing entry points. The sub-skills (`expand-phase`, `generate-design-briefs`, `generate-feature-briefs`, `run-task-*`, `close-*-phase-*`) are dispatched by the orchestrators but are also independently invokable for surgical work when upstream specs change mid-phase.
+The orchestrators (`anchor-files`, `design`, `features`, `landing`) are the user-facing entry points. The sub-skills (`expand-phase`, `generate-design-briefs`, `generate-feature-briefs`, `run-task-design`, `run-task-feature`, `close-design-phase`, `close-feature-phase`) are dispatched by the orchestrators but are also independently invokable for surgical work when upstream specs change mid-phase.
 
 ## The pipeline
 
@@ -66,11 +61,11 @@ planning artifacts (from arsenal-planning or any source)
                 ▼
    per-phase design half  ──►  per-phase feature half  ──►  single PR per phase
         │                          │
-        ├─ design-{web,ios}         ├─ features-{web,ios}
+        ├─ design                   ├─ features
         ├─ expand-phase             ├─ generate-feature-briefs
-        ├─ generate-design-briefs   ├─ run-task-feature-{web,ios}
-        ├─ run-task-design-{web,ios}  └─ close-feature-phase-{web,ios}  ──►  push + PR
-        └─ close-design-phase-{web,ios}  (NO push, NO PR)
+        ├─ generate-design-briefs   ├─ run-task-feature
+        ├─ run-task-design          └─ close-feature-phase  ──►  push + PR
+        └─ close-design-phase  (NO push, NO PR)
 
                 ▼
         landing  ──►  high-converting landing page (separate flow)
@@ -80,26 +75,26 @@ planning artifacts (from arsenal-planning or any source)
 
 > **Why split?** Design judgement and feature wiring fail differently. Letting feature implementers drift into visual changes was the failure mode that motivated this architecture. The feature pipeline may **extend** components (new props, variants, or states the data layer needs) but never **redesign** them. Commits modifying a component file include a `Component extended: <path> — <why>` note. Visual changes BLOCK with redirect to the design pipeline.
 
-> **Impeccable boundaries.** Not dispatched from any feature-pipeline skill. Not auto-dispatched from `run-task-design-*` for shape or craft (the user invokes manually if blocked on an under-specified design). Auto-dispatched on iOS as per-task finishers (`harden`, `animate`, `clarify`, `typeset`, `arrange`) per the task's `finishers: [list]` tag. May be invoked from `close-design-phase-*` as a phase-level audit, gateable (the user must opt in).
+> **Impeccable boundaries.** Not dispatched from any feature-pipeline skill. Not auto-dispatched from `run-task-design` (the user invokes manually if blocked on an under-specified design). May be invoked from `close-design-phase` as a phase-level audit, gateable (the user must opt in).
 
-> **Cross-plugin handoff.** Upstream of `anchor-files`, you need `planning/FEATURES.md` (or `planning/features/`), `docs/UX.md`, and `docs/DESIGN.md`. These are produced by [arsenal-planning](https://github.com/Outer-Heaven-Technologies/arsenal-planning) (skills `features`, `ux-{web,app,ios}`, `design`). If artifacts are missing, `anchor-files` stops and routes to the right arsenal-planning skill — or you can produce them by hand at the canonical paths.
+> **Cross-plugin handoff.** Upstream of `anchor-files`, you need `planning/FEATURES.md` (or `planning/features/`), `docs/UX.md`, and `docs/DESIGN.md`. These are produced by [arsenal-planning](https://github.com/Outer-Heaven-Technologies/arsenal-planning) (skills `features`, `ux-web` or `ux-app`, `design`). If artifacts are missing, `anchor-files` stops and routes to the right arsenal-planning skill — or you can produce them by hand at the canonical paths.
 
 ## Skill table
 
 | # | Skill | Stage | What it does |
 |---|-------|-------|--------------|
 | 1 | [`anchor-files`](#anchor-files--consolidate-planning-into-the-agent-reference-layer) | Bridge | Consolidate upstream planning into the agent reference layer — `CLAUDE.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `DESIGN_SYSTEM.md`, `TASKS.md`. Hard-requires upstream planning. |
-| 2a | [`design-web`](#design-web--design-ios--build-visual-components) / [`design-ios`](#design-web--design-ios--build-visual-components) | Orchestrator | **Design-half entry point.** Loops design tasks for a phase (visual components with hardcoded data). Runs FIRST in every phase that has design tasks. Dispatches the four sub-skills below in order. **Does NOT push or PR.** |
-|  | ↳ `expand-phase` *(shared sub-skill)* | sub-skill | Turns phase placeholders into a concrete tagged task list grouped under `### Design tasks` / `### Feature tasks`. Tags: `domain: design \| feature`, `research:`, plus `finishers:` / `snapshot:` (iOS design-domain only). Idempotent. Independently invokable for surgical re-expansion. Args: `--phase`, `--surface`, `--scope`, `--force`. |
+| 2a | [`design`](#design--build-visual-components) | Orchestrator | **Design-half entry point.** Loops design tasks for a phase (visual components with hardcoded data). Runs FIRST in every phase that has design tasks. Dispatches the four sub-skills below in order. **Does NOT push or PR.** |
+|  | ↳ `expand-phase` *(shared sub-skill)* | sub-skill | Turns phase placeholders into a concrete tagged task list grouped under `### Design tasks` / `### Feature tasks`. Tags: `domain: design \| feature`, `research:`. Idempotent. Independently invokable for surgical re-expansion. Args: `--phase`, `--scope`, `--force`. |
 |  | ↳ `generate-design-briefs` | sub-skill | Writes per-task context briefs (≤3k tokens) + design briefs (≤1.7k tokens) for `domain: design` tasks. Design source is read directly from mockups + `DESIGN_SYSTEM.md`. Idempotent; `--force` regenerates. |
-|  | ↳ `run-task-design-web` / `run-task-design-ios` | per task | Per-task design pipeline. **Web:** researcher → design-implementer (hardcoded data) → visual fidelity review (static analysis) → quality review → atomic commit. **iOS:** adds simulator-based visual fidelity gate + finisher pass. |
-|  | ↳ `close-design-phase-web` / `close-design-phase-ios` | phase wrap | Two gates: optional impeccable audit + docs update. Writes `.tasks/phase-N/design-summary.md`. **Does NOT push or PR.** |
-| 2b | [`features-web`](#features-web--features-ios--wire-components-to-real-data) / [`features-ios`](#features-web--features-ios--wire-components-to-real-data) | Orchestrator | **Feature-half entry point.** Runs AFTER 2a completes for the same phase. Loops feature tasks (wire components to real data). Dispatches the three sub-skills below. **Opens the single PR per phase**, covering both halves' commits. |
+|  | ↳ `run-task-design` | per task | Per-task design pipeline. Researcher → design-implementer (hardcoded data) → visual fidelity review (static analysis) → quality review → atomic commit. |
+|  | ↳ `close-design-phase` | phase wrap | Two gates: optional impeccable audit + docs update. Writes `.tasks/phase-N/design-summary.md`. **Does NOT push or PR.** |
+| 2b | [`features`](#features--wire-components-to-real-data) | Orchestrator | **Feature-half entry point.** Runs AFTER 2a completes for the same phase. Loops feature tasks (wire components to real data). Dispatches the three sub-skills below. **Opens the single PR per phase**, covering both halves' commits. |
 |  | ↳ `generate-feature-briefs` | sub-skill | Writes per-task context briefs for `domain: feature` tasks, with an `## Available components` manifest sourced from design-pipeline-committed paths. Idempotent; `--force` regenerates. |
-|  | ↳ `run-task-feature-web` / `run-task-feature-ios` | per task | Per-task feature pipeline. Researcher → feature-implementer (component-boundary rule; `Component extended: …` commit note) → spec compliance review → quality review → atomic commit. No impeccable, no visual fidelity gate. |
-|  | ↳ `close-feature-phase-web` / `close-feature-phase-ios` | phase wrap | Phase terminus. **Web:** 6 gates — tests → Playwright → docs → CodeRabbit → trim+archive → push+PR. **iOS:** 7 gates — tests → Periphery → snapshot verify → docs → CodeRabbit → trim+archive (with PNG cleanup) → push+PR. |
+|  | ↳ `run-task-feature` | per task | Per-task feature pipeline. Researcher → feature-implementer (component-boundary rule; `Component extended: …` commit note) → spec compliance review → quality review → atomic commit. No impeccable, no visual fidelity gate. |
+|  | ↳ `close-feature-phase` | phase wrap | Phase terminus. 6 gates: tests → Playwright (if configured) → docs → CodeRabbit → trim+archive → push+PR. Opens the single PR per phase covering both design + feature commits. |
 | 3 | [`landing`](#landing--high-converting-landing-pages) | Standalone | Build a high-converting landing page — researched, structured, deployed. |
-| 4 | [`dispatch-parallel`](#dispatch-parallel--fan-out-independent-investigations) | Utility (off-pipeline) | Fan out 2–5 read-only investigations to parallel investigator subagents; reconcile results into one `SUMMARY.md` with cross-investigation overlap detection and severity-tagged recommendations. Use for audits, debug sessions, code analysis. Also shipped in arsenal-planning — both copies are identical; install whichever plugin(s) you have, the skill works the same. |
+| 4 | [`dispatch-parallel`](#dispatch-parallel--fan-out-independent-investigations) | Utility (off-pipeline) | Fan out 2–5 read-only investigations to parallel investigator subagents; reconcile results into one `SUMMARY.md` with cross-investigation overlap detection and severity-tagged recommendations. Use for audits, debug sessions, code analysis. Also shipped in arsenal-planning and arsenal-build-io — all three copies are identical. |
 
 > **Step 2 reading guide.** Only `2a` and `2b` are user-facing orchestrators. The `↳` rows are sub-skills the orchestrator dispatches in sequence; they share the orchestrator's branch and resolved scope. Sub-skills are also independently invokable (e.g., `/arsenal-build:expand-phase --phase 2 --force`).
 
@@ -147,7 +142,7 @@ Each section follows the same shape: a one-line purpose, the steps it runs, how 
 
 ### `anchor-files` — consolidate planning into the agent reference layer
 
-Bridge between planning (arsenal-planning, or hand-authored equivalents) and execution (`design-*` / `features-*`). Consolidates upstream planning into the **agent reference layer**: `CLAUDE.md` at root plus `docs/{ARCHITECTURE,CONVENTIONS,DESIGN_SYSTEM,TASKS}.md`. These files are read by every Claude session opening the project and sliced by the brief generators that drive the build pipeline.
+Bridge between planning (arsenal-planning, or hand-authored equivalents) and execution (`design` / `features`). Consolidates upstream planning into the **agent reference layer**: `CLAUDE.md` at root plus `docs/{ARCHITECTURE,CONVENTIONS,DESIGN_SYSTEM,TASKS}.md`. These files are read by every Claude session opening the project and sliced by the brief generators that drive the build pipeline.
 
 This is not "generate docs." It's "design the structured reference surface that every downstream agent reads from for the lifetime of the project."
 
@@ -158,7 +153,7 @@ The build pipeline depends on planning being complete. Missing artifacts → ski
 | Artifact | Required | If missing |
 |---|---|---|
 | `planning/FEATURES.md` or `planning/features/` | Yes | Stop. Route to `arsenal-planning:features` (or ask for path). |
-| `docs/UX.md` | UI projects only | Stop. Route to `arsenal-planning:ux-{web,app,ios}`. |
+| `docs/UX.md` | UI projects only | Stop. Route to `arsenal-planning:ux-web` or `arsenal-planning:ux-app`. |
 | `docs/DESIGN.md` | UI projects only | Stop. Route to `arsenal-planning:design`. |
 | `planning/MVP_SPEC.md` | Optional | Read if present; skip if not. |
 | `docs/mockups/` | Recommended for UI | Soft prompt: run `arsenal-planning:mockups` to generate briefs, then feed each into Claude Design / Stitch / Open Design / v0. |
@@ -166,11 +161,10 @@ The build pipeline depends on planning being complete. Missing artifacts → ski
 **How it works**
 
 1. **Verify preconditions.** Hard-check the artifacts above (after resolving any `.arsenal/config.yaml` overrides). No discovery interview if anything required is missing.
-2. **Detect surface.** Web marketing / web app / native iOS / non-UI. Drives stack questions and which files generate.
-3. **Stack-only discovery.** ~6–8 questions max — framework, styling, database/CMS, auth, state management, hosting, key integrations, project intent. Skip anything answered by existing artifacts (e.g., existing `package.json` or `*.xcodeproj`).
-4. **Generate anchor files.** Dependency order — ARCHITECTURE → CONVENTIONS → DESIGN_SYSTEM → TASKS → CLAUDE.
-5. **Set up mockup slot.** `mkdir -p docs/mockups`. Surface its absence in the final report if empty.
-6. **Review + handoff.** Files created, sizes flagged, next step (`design-{web,ios} 1`).
+2. **Stack-only discovery.** ~6–8 questions max — framework, styling, database/CMS, auth, state management, hosting, key integrations, project intent. Skip anything answered by existing artifacts (e.g., existing `package.json`).
+3. **Generate anchor files.** Dependency order — ARCHITECTURE → CONVENTIONS → DESIGN_SYSTEM → TASKS → CLAUDE.
+4. **Set up mockup slot.** `mkdir -p docs/mockups`. Surface its absence in the final report if empty.
+5. **Review + handoff.** Files created, sizes flagged, next step (`design 1`).
 
 **File sizing — load-bearing**
 
@@ -180,7 +174,7 @@ The build pipeline depends on planning being complete. Missing artifacts → ski
 | `ARCHITECTURE.md` | ≤500 | `generate-feature-briefs` (slices data flow + schema sections) |
 | `CONVENTIONS.md` | ≤500 | `generate-feature-briefs` (slices pattern sections) |
 | `DESIGN_SYSTEM.md` | ≤500 (UI only) | `generate-design-briefs` (slices token map + component sections) |
-| `TASKS.md` | No cap | `expand-phase`, `close-*-phase-*` (state machine — read + write) |
+| `TASKS.md` | No cap | `expand-phase`, `close-*-phase` (state machine — read + write) |
 
 Each output section is self-contained so brief generators can excerpt cleanly. Cross-references are precise (`docs/ARCHITECTURE.md § Data Flow / Recipe Capture`), not vague.
 
@@ -195,7 +189,7 @@ CLAUDE.md is the only place where the build pipeline's load-bearing rules appear
 **A few load-bearing decisions**
 
 - **`TASKS.md` is a phase scaffold, not a complete task list.** Phase entries are placeholders that `expand-phase` expands on demand against fresh context.
-- **`DESIGN_SYSTEM.md` is stack-specific implementation** (CSS vars, SwiftUI tokens). `DESIGN.md` stays canonical and untouched.
+- **`DESIGN_SYSTEM.md` is stack-specific implementation** (CSS vars, theme tokens). `DESIGN.md` stays canonical and untouched.
 - **`CONVENTIONS.md` mandates concrete sections** — KISS / YAGNI / Functional First, "Before Writing Any Code", anti-patterns — with **real working code** for the chosen stack, not pseudocode.
 - **In split-features mode**, `anchor-files` reads only `planning/features/README.md`, never individual feature files.
 
@@ -209,41 +203,37 @@ CLAUDE.md is the only place where the build pipeline's load-bearing rules appear
 
 ---
 
-### `design-web` / `design-ios` — build visual components
+### `design` — build visual components
 
-The design half of each phase. Loops design tasks — each task builds a component / view with hardcoded data, exercises every state from the design brief's variant coverage, and commits atomically. **Does NOT push or PR.** Returns the branch for the feature pipeline.
+The design half of each phase. Loops design tasks — each task builds a component with hardcoded data, exercises every state from the design brief's variant coverage, and commits atomically. **Does NOT push or PR.** Returns the branch for the feature pipeline.
 
-**Per-task pipeline (inside `run-task-design-{web,ios}`):**
+**Per-task pipeline (inside `run-task-design`):**
 
 1. Optional researcher (when `research: yes`).
-2. Design-implementer: reads design brief, mockup at cited region, token map, variant coverage. Builds the component at the path declared in DESIGN_SYSTEM.md (or the context brief). Hardcoded data only — no `@Query`, no server actions.
-3. Visual fidelity review.
-   - **Web:** static analysis — token map adherence, locked-primitive citation, state coverage, mockup ↔ code match, hardcoded-data discipline. No live browser.
-   - **iOS:** full simulator-mediated gate — build → snapshot test → token-discipline scan → a11y identifier check → screenshot → mockup compare → Reduced Motion verification.
-4. Spec compliance review (iOS only; web design pipeline's two stages are visual fidelity + quality).
-5. Code quality review.
-6. Finisher pass (iOS only; per `finishers: [list]` tag — `harden`, `animate`, `clarify`, `typeset`, `arrange`).
-7. Atomic commit + `[x]` in `TASKS.md` under `### Design tasks`.
+2. Design-implementer: reads design brief, mockup at cited region, token map, variant coverage. Builds the component at the path declared in DESIGN_SYSTEM.md (or the context brief). Hardcoded data only — no server actions, no live queries.
+3. Visual fidelity review: static analysis — token map adherence, locked-primitive citation, state coverage, mockup ↔ code match, hardcoded-data discipline.
+4. Code quality review.
+5. Atomic commit + `[x]` in `TASKS.md` under `### Design tasks`.
 
-**No automatic impeccable dispatch** for shape / craft. If the design brief is thin, the implementer BLOCKS — the user invokes `impeccable:shape <surface>` manually if they want. **Finishers (iOS) ARE auto-dispatched** per the task's `finishers: [list]` tag.
+**No automatic impeccable dispatch** for shape / craft. If the design brief is thin, the implementer BLOCKS — the user invokes `impeccable:shape <surface>` manually if they want.
 
-**Phase wrap (`close-design-phase-{web,ios}`):** two gates — (1) optional impeccable audit + polish, gateable; (2) docs update if scope drifted. Writes `.tasks/phase-N/design-summary.md` for the feature-pipeline PR body. **No push, no PR, no CodeRabbit, no trim** — that's all the feature close's job.
+**Phase wrap (`close-design-phase`):** two gates — (1) optional impeccable audit + polish, gateable; (2) docs update if scope drifted. Writes `.tasks/phase-N/design-summary.md` for the feature-pipeline PR body. **No push, no PR, no CodeRabbit, no trim** — that's all the feature close's job.
 
 **How to use:**
 
-- **Slash command:** `/arsenal-build:design-web N` or `/arsenal-build:design-ios N`
-- **Or trigger with:** "design phase 1", "build the visual components for phase 2", "design the onboarding screens"
+- **Slash command:** `/arsenal-build:design N`
+- **Or trigger with:** "design phase 1", "build the visual components for phase 2"
 
 **Inputs:** `TASKS.md` (required), `UX.md`, `DESIGN_SYSTEM.md`, `DESIGN.md`, feature specs (design-relevant parts), `docs/mockups/` (recommended).
 **Outputs:** atomic commits of design-pipeline components, `[x]` flips in `### Design tasks`, `.tasks/phase-N/design-summary.md`.
 
 ---
 
-### `features-web` / `features-ios` — wire components to real data
+### `features` — wire components to real data
 
 The feature half of each phase. Loops feature tasks — each task wires existing components (committed by the design pipeline earlier in the same phase) to real data: queries, mutations, services, server actions, state management. **Opens the single PR per phase at the end.**
 
-**Per-task pipeline (inside `run-task-feature-{web,ios}`):**
+**Per-task pipeline (inside `run-task-feature`):**
 
 1. Optional researcher (when `research: yes`).
 2. Feature-implementer: reads context brief with `## Available components` manifest enumerating design-pipeline-committed paths. Wires real data. Treats components as read-only design surfaces; may extend (new props/variants/states) but not redesign (visual treatment / spacing / typography / color). Every commit touching a component file includes a `Component extended: <path> — <why>` note.
@@ -251,41 +241,23 @@ The feature half of each phase. Loops feature tasks — each task wires existing
 4. Code quality review.
 5. Atomic commit + `[x]` in `TASKS.md` under `### Feature tasks`.
 
-**No impeccable, no visual fidelity gate, no finishers** — all are design-pipeline territory. If a feature task seems to need design judgement, it was misclassified — the implementer BLOCKS with `reason: purely visual change required — redirect to design pipeline`.
+**No impeccable, no visual fidelity gate** — both are design-pipeline territory. If a feature task seems to need design judgement, it was misclassified — the implementer BLOCKS with `reason: purely visual change required — redirect to design pipeline`.
 
-**Phase wrap (`close-feature-phase-{web,ios}`):**
-
-- **Web (6 gates):** final integration test → Playwright (if configured) → docs update (if drift) → **CodeRabbit (hard gate, covers full phase)** → trim `TASKS.md` + archive `.tasks/phase-N/` → push branch + open PR.
-- **iOS (7 gates):** `RunAllTests` → Periphery dead-code scan → snapshot test verification → docs update → **CodeRabbit** → trim+archive (with `*.png` cleanup) → push + open PR.
-
-CodeRabbit covers the full phase (design + feature commits together) — single pass per PR.
+**Phase wrap (`close-feature-phase`):** 6 gates — final integration test → Playwright (if configured) → docs update (if drift) → **CodeRabbit (hard gate, covers full phase)** → trim `TASKS.md` + archive `.tasks/phase-N/` → push branch + open PR. CodeRabbit covers the full phase (design + feature commits together) — single pass per PR.
 
 **How to use:**
 
-- **Slash command:** `/arsenal-build:features-web N` or `/arsenal-build:features-ios N`
+- **Slash command:** `/arsenal-build:features N`
 - **Or trigger with:** "begin work on phase 1" (after design half complete), "wire the components to data", "ship the phase"
 
-Run AFTER `design-{web,ios}` + `close-design-phase-{web,ios}` for the same phase. If invoked before the design half completes, this orchestrator stops and tells the user to run the design half first.
+Run AFTER `design` + `close-design-phase` for the same phase. If invoked before the design half completes, this orchestrator stops and tells the user to run the design half first.
 
 Scope flexibly — *"phase 1, just the <feature-name> feature"* or *"the <story-name> story within <feature>"* both work. Pick model per task: simple → Sonnet/Haiku, complex → Opus.
 
 **Inputs:** `TASKS.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `DESIGN_SYSTEM.md` (required); feature specs; phase branch with design-pipeline commits already present.
 **Outputs:** atomic commits of feature-pipeline data wiring, `[x]` flips in `### Feature tasks`, trimmed `TASKS.md`, archived briefs, single PR for the phase.
 
-**Pure feature-domain phases** (no design tasks — pure backend, schema migrations, infrastructure): `features-{web,ios}` runs the whole phase end-to-end, no design half. The `### Design tasks` subsection is the `_None — pure feature-domain phase._` placeholder.
-
-**iOS-specific:**
-
-| Element | iOS variant |
-|---|---|
-| Tooling | Apple Xcode MCP, iOS Simulator MCP, Periphery, swift-snapshot-testing |
-| Design source | `docs/mockups/*.{jsx,tsx,html,png,figma-export.json}` — consumed by `design-ios` |
-| Implementer rules | Hex literal lockdown (theme module only), accessibility identifiers, `@Observable` not `ObservableObject`, Swift Concurrency only |
-| Finisher set | Auto-dispatched in `run-task-design-ios` — `harden`, `animate`, `clarify`, `typeset`, `arrange` per the task's `finishers: [list]` tag |
-
-Both `design-ios` and `features-ios` prompt to confirm Xcode is open and a simulator is booted before tasks dispatch.
-
-Pick the iOS variants when the project root has `*.xcodeproj` or `Package.swift` for an app target. Pick the web variants for everything else (web/frontend, Node/Python servers, cross-platform projects).
+**Pure feature-domain phases** (no design tasks — pure backend, schema migrations, infrastructure): `features` runs the whole phase end-to-end, no design half. The `### Design tasks` subsection is the `_None — pure feature-domain phase._` placeholder.
 
 ---
 
@@ -334,11 +306,11 @@ Also auto-fires from a TASKS.md task that mentions a landing page.
 
 A utility skill, **off the linear pipeline**. Dispatches 2–5 read-only investigations to parallel investigator subagents and reconciles their results into a single `SUMMARY.md` with cross-investigation overlap detection and severity-tagged recommendations. Use for audits, debug sessions, code analysis — any case where the work is genuinely disjoint and parallelization actually pays for itself.
 
-Also shipped in arsenal-planning (it's required there by `market-analysis`). The two copies are identical — Claude Code's plugin namespacing keeps them addressable separately as `/arsenal-build:dispatch-parallel` and `/arsenal-planning:dispatch-parallel`. Install whichever plugin(s) you have; the skill behaves the same in both.
+Also shipped in arsenal-planning (where `market-analysis` requires it) and arsenal-build-io. All three copies are identical — Claude Code's plugin namespacing addresses them separately. Install whichever plugin(s) you have; the skill behaves the same in each.
 
 **The independence gate is the whole skill.** Before any dispatch, it checks three criteria — disjoint scope, no shared mutations, result-independence — and refuses to fan out if they don't hold. Failing the gate is the success case for dependent work; the skill recommends sequential execution.
 
-**Does NOT compose with `run-task-{design,feature}-{web,ios}`.** Investigations are read-only by design — investigator subagents have zero write capability. When findings recommend code changes, the SUMMARY's "Next steps" block points the user at the per-task pipelines (`run-task-design-*` or `run-task-feature-*` for sequential, one-fix-at-a-time work) or the orchestrators (`design-*` / `features-*` for pattern-spanning work as a TASKS.md phase). The two skills connect through filesystem and user judgment, not direct invocation.
+**Does NOT compose with `run-task-{design,feature}`.** Investigations are read-only by design — investigator subagents have zero write capability. When findings recommend code changes, the SUMMARY's "Next steps" block points the user at the per-task pipelines (`run-task-design` / `run-task-feature` for sequential, one-fix-at-a-time work) or the orchestrators (`design` / `features` for pattern-spanning work as a TASKS.md phase). The two skills connect through filesystem and user judgment, not direct invocation.
 
 **Locked contracts:**
 - **Count bounds:** N = 1 refuses with suggestion; 2 ≤ N ≤ 5 normal; N ≥ 6 hard-refuses (recommend phase modeling).
@@ -351,7 +323,7 @@ Also shipped in arsenal-planning (it's required there by `market-analysis`). The
 - **Slash command:** `/arsenal-build:dispatch-parallel`
 - **Or trigger with:** "investigate these in parallel", "fan out on these issues", "run these checks concurrently", "audit X, Y, and Z separately"
 
-- **Inputs:** 2–5 investigation descriptions via `--investigation` (repeated) or `--from-file <path>`, optional `--surface web|ios`, optional `--force`, optional `--max <N>` (capped at 5).
+- **Inputs:** 2–5 investigation descriptions via `--investigation` (repeated) or `--from-file <path>`, optional `--force`, optional `--max <N>` (capped at 5).
 - **Outputs (`.tasks/parallel/<run-id>/`):** `investigation-N-result.md` per investigation (≤3k tokens), `SUMMARY.md` (aggregated with overlap detection + conflict flags + next-step recommendations).
 
 ## File layout
@@ -364,41 +336,30 @@ arsenal-build/
 │   ├── anchor-files/SKILL.md
 │   │
 │   ├── # Design + feature pipeline orchestrators (thin):
-│   ├── design-web/SKILL.md
-│   ├── design-ios/SKILL.md
-│   ├── features-web/SKILL.md
-│   ├── features-ios/SKILL.md
+│   ├── design/SKILL.md
+│   ├── features/SKILL.md
 │   │
 │   ├── # Shared sub-skills:
 │   ├── expand-phase/SKILL.md
 │   ├── generate-design-briefs/
 │   │   ├── SKILL.md
-│   │   └── references/{design-brief-prompt-web,design-brief-prompt-ios}.md
+│   │   └── references/design-brief-prompt.md
 │   ├── generate-feature-briefs/SKILL.md
 │   │
 │   ├── # Per-task pipelines:
-│   ├── run-task-design-web/
+│   ├── run-task-design/
 │   │   ├── SKILL.md
 │   │   └── references/{researcher,design-implementer,visual-fidelity-reviewer,quality-reviewer}-prompt.md
-│   ├── run-task-design-ios/
-│   │   ├── SKILL.md
-│   │   ├── references/{researcher,design-implementer,visual-fidelity-reviewer,spec-reviewer,quality-reviewer}-prompt.md
-│   │   └── references/finishers-table.md
-│   ├── run-task-feature-web/
-│   │   ├── SKILL.md
-│   │   └── references/{researcher,feature-implementer,spec-reviewer,quality-reviewer}-prompt.md
-│   ├── run-task-feature-ios/
+│   ├── run-task-feature/
 │   │   ├── SKILL.md
 │   │   └── references/{researcher,feature-implementer,spec-reviewer,quality-reviewer}-prompt.md
 │   │
 │   ├── # Phase close skills:
-│   ├── close-design-phase-web/SKILL.md     # 2 gates; no push, no PR
-│   ├── close-design-phase-ios/SKILL.md     # 2 gates; no push, no PR
-│   ├── close-feature-phase-web/SKILL.md    # 6 gates; opens single PR per phase
-│   ├── close-feature-phase-ios/SKILL.md    # 7 gates; opens single PR per phase
+│   ├── close-design-phase/SKILL.md     # 2 gates; no push, no PR
+│   ├── close-feature-phase/SKILL.md    # 6 gates; opens single PR per phase
 │   │
 │   ├── landing/SKILL.md
-│   └── dispatch-parallel/                  # utility skill, off-pipeline (also in arsenal-planning)
+│   └── dispatch-parallel/              # utility skill, off-pipeline (also in arsenal-planning + arsenal-build-io)
 │       ├── SKILL.md
 │       └── references/investigator-prompt.md
 ├── PIPELINE.md
@@ -415,7 +376,8 @@ arsenal-build/
 
 ## Pairs with
 
-- **[arsenal-planning](https://github.com/Outer-Heaven-Technologies/arsenal-planning)** — the planning half. Produces the `MVP_SPEC.md`, `FEATURES.md`, `UX.md`, `DESIGN.md`, and `planning/mockup-briefs/` artifacts that arsenal-build consumes. Optional but recommended; you can also produce planning artifacts by hand at canonical paths and arsenal-build will accept them.
+- **[arsenal-planning](https://github.com/Outer-Heaven-Technologies/arsenal-planning)** — the planning half. Produces the `MVP_SPEC.md`, `FEATURES.md`, `UX.md`, `DESIGN.md`, and `planning/mockup-briefs/` artifacts that arsenal-build consumes. Optional but recommended; you can also produce planning artifacts by hand at canonical paths.
+- **[arsenal-build-io](https://github.com/Outer-Heaven-Technologies/arsenal-build-io)** — the iOS variant. Same pipeline shape, SwiftUI + Xcode + simulator-driven visual fidelity gate on the design pipeline. Install alongside arsenal-build if you ship both web and iOS surfaces from the same workspace.
 
 ## License
 

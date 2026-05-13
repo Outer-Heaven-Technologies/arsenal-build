@@ -192,6 +192,6 @@ Then review against this checklist:
 | Skill | Relationship |
 |-------|-------------|
 | `/anchor-files` | Phase 0 may include a landing page task. This skill handles the execution of that task. |
-| `/features-web` | If a task in TASKS.md involves building a landing page, the implementer subagent should use this skill's structure and guidelines. |
+| `/features` | If a task in TASKS.md involves building a landing page, the implementer subagent should use this skill's structure and guidelines. |
 | `/gtm` | GTM defines the positioning and channel strategy. This skill turns that positioning into an actual page. |
 | `frontend-design` / Impeccable | Handles the visual execution. This skill handles the conversion structure and copy strategy. They're complementary — this skill says *what* to build, Impeccable says *how it should look*. |
