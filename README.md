@@ -99,6 +99,7 @@ planning artifacts (from arsenal-planning or any source)
 |  | ↳ `run-task-feature-web` / `run-task-feature-ios` | per task | Per-task feature pipeline. Researcher → feature-implementer (component-boundary rule; `Component extended: …` commit note) → spec compliance review → quality review → atomic commit. No impeccable, no visual fidelity gate. |
 |  | ↳ `close-feature-phase-web` / `close-feature-phase-ios` | phase wrap | Phase terminus. **Web:** 6 gates — tests → Playwright → docs → CodeRabbit → trim+archive → push+PR. **iOS:** 7 gates — tests → Periphery → snapshot verify → docs → CodeRabbit → trim+archive (with PNG cleanup) → push+PR. |
 | 3 | [`landing`](#landing--high-converting-landing-pages) | Standalone | Build a high-converting landing page — researched, structured, deployed. |
+| 4 | [`dispatch-parallel`](#dispatch-parallel--fan-out-independent-investigations) | Utility (off-pipeline) | Fan out 2–5 read-only investigations to parallel investigator subagents; reconcile results into one `SUMMARY.md` with cross-investigation overlap detection and severity-tagged recommendations. Use for audits, debug sessions, code analysis. Also shipped in arsenal-planning — both copies are identical; install whichever plugin(s) you have, the skill works the same. |
 
 > **Step 2 reading guide.** Only `2a` and `2b` are user-facing orchestrators. The `↳` rows are sub-skills the orchestrator dispatches in sequence; they share the orchestrator's branch and resolved scope. Sub-skills are also independently invokable (e.g., `/arsenal-build:expand-phase --phase 2 --force`).
 
@@ -327,6 +328,32 @@ Also auto-fires from a TASKS.md task that mentions a landing page.
 - **Inputs:** any of `planning/MVP_SPEC.md`, `planning/MARKET_RESEARCH.md` (unified dossier), `docs/DESIGN_SYSTEM.md` (optional). Otherwise the skill asks.
 - **Outputs:** a deployable landing page repo, or a `/coming-soon` route inside an existing app — actual code, not specs.
 
+---
+
+### `dispatch-parallel` — fan out independent investigations
+
+A utility skill, **off the linear pipeline**. Dispatches 2–5 read-only investigations to parallel investigator subagents and reconciles their results into a single `SUMMARY.md` with cross-investigation overlap detection and severity-tagged recommendations. Use for audits, debug sessions, code analysis — any case where the work is genuinely disjoint and parallelization actually pays for itself.
+
+Also shipped in arsenal-planning (it's required there by `market-analysis`). The two copies are identical — Claude Code's plugin namespacing keeps them addressable separately as `/arsenal-build:dispatch-parallel` and `/arsenal-planning:dispatch-parallel`. Install whichever plugin(s) you have; the skill behaves the same in both.
+
+**The independence gate is the whole skill.** Before any dispatch, it checks three criteria — disjoint scope, no shared mutations, result-independence — and refuses to fan out if they don't hold. Failing the gate is the success case for dependent work; the skill recommends sequential execution.
+
+**Does NOT compose with `run-task-{design,feature}-{web,ios}`.** Investigations are read-only by design — investigator subagents have zero write capability. When findings recommend code changes, the SUMMARY's "Next steps" block points the user at the per-task pipelines (`run-task-design-*` or `run-task-feature-*` for sequential, one-fix-at-a-time work) or the orchestrators (`design-*` / `features-*` for pattern-spanning work as a TASKS.md phase). The two skills connect through filesystem and user judgment, not direct invocation.
+
+**Locked contracts:**
+- **Count bounds:** N = 1 refuses with suggestion; 2 ≤ N ≤ 5 normal; N ≥ 6 hard-refuses (recommend phase modeling).
+- **Idempotence:** default skip per-investigation if `investigation-{N}-result.md` exists; `--force` regenerates.
+- **Conflict handling:** when investigations contradict each other, SUMMARY flags conflicts and the skill exits cleanly.
+- **Investigator tools:** broad read (Read / Glob / Grep / read-only Bash / WebSearch / Firecrawl / claude-in-chrome), zero write.
+
+**How to use it**
+
+- **Slash command:** `/arsenal-build:dispatch-parallel`
+- **Or trigger with:** "investigate these in parallel", "fan out on these issues", "run these checks concurrently", "audit X, Y, and Z separately"
+
+- **Inputs:** 2–5 investigation descriptions via `--investigation` (repeated) or `--from-file <path>`, optional `--surface web|ios`, optional `--force`, optional `--max <N>` (capped at 5).
+- **Outputs (`.tasks/parallel/<run-id>/`):** `investigation-N-result.md` per investigation (≤3k tokens), `SUMMARY.md` (aggregated with overlap detection + conflict flags + next-step recommendations).
+
 ## File layout
 
 ```
@@ -370,7 +397,10 @@ arsenal-build/
 │   ├── close-feature-phase-web/SKILL.md    # 6 gates; opens single PR per phase
 │   ├── close-feature-phase-ios/SKILL.md    # 7 gates; opens single PR per phase
 │   │
-│   └── landing/SKILL.md
+│   ├── landing/SKILL.md
+│   └── dispatch-parallel/                  # utility skill, off-pipeline (also in arsenal-planning)
+│       ├── SKILL.md
+│       └── references/investigator-prompt.md
 ├── PIPELINE.md
 ├── LICENSE
 └── README.md

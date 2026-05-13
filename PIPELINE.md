@@ -97,8 +97,11 @@ Which file each skill **reads** (`R`) and **writes** (`W`):
 | `close-feature-phase-web` | `TASKS.md`, full phase block, `.tasks/phase-N/` (including `design-summary.md`), phase branch | fix commits, trimmed `TASKS.md`, archived `.tasks/phase-N/`, pushed branch + single PR for the phase |
 | `close-feature-phase-ios` | same + `mcp__xcode__*` (RunAllTests, GetBuildLog), `periphery` CLI, `swift-snapshot-testing` | fix commits, trimmed `TASKS.md`, archived `.tasks/phase-N/` (with `*.png` deleted), pushed branch + single PR |
 | `landing` (standalone) | `MVP_SPEC.md`, `MARKET_RESEARCH.md` (unified — contains competitive analysis in §3), `DESIGN_SYSTEM.md` | landing page repo or route |
+| `dispatch-parallel` (utility, off-pipeline) | 2–5 investigation descriptions (CLI args or `--from-file`), optional `--surface web\|ios`; args: `--investigation`, `--from-file`, `--surface`, `--force`, `--max` | `.tasks/parallel/<run-id>/investigation-N-result.md` per investigation (≤3k tokens), `SUMMARY.md` (aggregated, with file-overlap detection and severity-tagged recommendations) |
 
 `*` = required. All others soft — skill prompts to run upstream or proceeds with reduced fidelity.
+
+> **`dispatch-parallel` is shipped in both plugins** — arsenal-build for code audits / debug sessions / parallel reviews during execution, and arsenal-planning where `market-analysis` requires it. The two copies are identical and Claude Code's plugin namespacing addresses them separately (`/arsenal-build:dispatch-parallel` vs `/arsenal-planning:dispatch-parallel`).
 
 ## Cross-plugin handoff
 
@@ -153,6 +156,8 @@ These require explicit invocation (no auto-trigger via natural language):
 Auto-fire on natural language matching their description:
 
 - `landing` — fires on "build a landing page", "create a waitlist", "coming soon page"
+
+- `dispatch-parallel` — fires on "investigate these in parallel", "fan out on these issues", "run these checks concurrently", "audit X, Y, and Z separately"
 
 Sub-skills (`expand-phase`, `generate-*-briefs`, `run-task-*`, `close-*-phase-*`) don't auto-fire — they're dispatched by their orchestrator. You can invoke them explicitly for surgical work when upstream artifacts change mid-phase.
 
