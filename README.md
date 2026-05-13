@@ -331,41 +331,40 @@ Also shipped in arsenal-planning (where `market-analysis` requires it) and arsen
 ```
 arsenal-build/
 ├── .claude-plugin/
-│   └── plugin.json              # plugin manifest (name: arsenal-build)
-├── skills/
-│   ├── anchor-files/SKILL.md
+│   └── plugin.json                        # plugin manifest (name: arsenal-build)
+├── skills/                                # folder names are numbered by pipeline order; frontmatter `name:` is the bare slug
+│   ├── 01-anchor-files/SKILL.md           # name: anchor-files (bridge — runs once before phases)
 │   │
-│   ├── # Design + feature pipeline orchestrators (thin):
-│   ├── design/SKILL.md
-│   ├── features/SKILL.md
-│   │
-│   ├── # Shared sub-skills:
-│   ├── expand-phase/SKILL.md
-│   ├── generate-design-briefs/
-│   │   ├── SKILL.md
+│   ├── # Design half — 02 family:
+│   ├── 02-design/SKILL.md                 # name: design (orchestrator)
+│   ├── 02a-expand-phase/SKILL.md          # name: expand-phase (first sub dispatched)
+│   ├── 02b-generate-design-briefs/
+│   │   ├── SKILL.md                       # name: generate-design-briefs
 │   │   └── references/design-brief-prompt.md
-│   ├── generate-feature-briefs/SKILL.md
-│   │
-│   ├── # Per-task pipelines:
-│   ├── run-task-design/
-│   │   ├── SKILL.md
+│   ├── 02c-run-task-design/
+│   │   ├── SKILL.md                       # name: run-task-design
 │   │   └── references/{researcher,design-implementer,visual-fidelity-reviewer,quality-reviewer}-prompt.md
-│   ├── run-task-feature/
-│   │   ├── SKILL.md
+│   ├── 02d-close-design-phase/SKILL.md    # name: close-design-phase (2 gates; no push, no PR)
+│   │
+│   ├── # Feature half — 03 family:
+│   ├── 03-features/SKILL.md               # name: features (orchestrator)
+│   ├── 03a-generate-feature-briefs/SKILL.md  # name: generate-feature-briefs
+│   ├── 03b-run-task-feature/
+│   │   ├── SKILL.md                       # name: run-task-feature
 │   │   └── references/{researcher,feature-implementer,spec-reviewer,quality-reviewer}-prompt.md
+│   ├── 03c-close-feature-phase/SKILL.md   # name: close-feature-phase (6 gates; opens single PR per phase)
 │   │
-│   ├── # Phase close skills:
-│   ├── close-design-phase/SKILL.md     # 2 gates; no push, no PR
-│   ├── close-feature-phase/SKILL.md    # 6 gates; opens single PR per phase
+│   ├── 04-landing/SKILL.md                # name: landing (standalone)
 │   │
-│   ├── landing/SKILL.md
-│   └── dispatch-parallel/              # utility skill, off-pipeline (also in arsenal-planning + arsenal-build-io)
-│       ├── SKILL.md
+│   └── dispatch-parallel/                 # utility, off-pipeline (no number prefix) — also in arsenal-planning + arsenal-build-io
+│       ├── SKILL.md                       # name: dispatch-parallel
 │       └── references/investigator-prompt.md
 ├── PIPELINE.md
 ├── LICENSE
 └── README.md
 ```
+
+> **Folder numbering convention.** Pipeline skills carry numeric prefixes (`01-`, `02-`, `02a-`, …) reflecting execution order so a reader can see the flow when listing the directory. Utility skills (`dispatch-parallel`) sit unnumbered to signal "off-pipeline." Claude Code uses the frontmatter `name:` to register the skill, so slash commands stay clean — `/arsenal-build:design`, not `/arsenal-build:02-design`.
 
 ## Philosophy
 
