@@ -155,7 +155,7 @@ Only after spec compliance passes. Spawn a reviewer subagent using the prompt te
 
 Once both reviews pass:
 
-- Ensure all changes are committed with semantic messages: `feat(phase-N): [task summary]` or the appropriate type (`fix`, `refactor`, `test`, etc.). Component-touching commits must include the `Component extended:` note. The implementer makes these commits during its dispatch; this skill verifies the working tree is clean before flipping the checkbox.
+- Ensure all changes are committed with semantic messages: `feat(phase-N): [task summary]` or the appropriate type (`fix`, `refactor`, `test`, etc.). Component-touching commits must include the `Component extended:` note. The implementer makes these commits during its dispatch; this skill runs `git status --porcelain` and confirms empty output before flipping the checkbox. If output is non-empty, BLOCK with `reason: implementer left uncommitted changes — <file list>` and route back to a fix dispatch.
 - Mark the task as complete in `TASKS.md`: change `- [ ]` to `- [x]` for this task (under the `### Feature tasks` subsection).
 - Report DONE to the caller.
 

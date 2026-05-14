@@ -78,7 +78,7 @@ The user can also invoke an impeccable audit pass at `close-design-phase` as a s
 | `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, copy locks, anti-patterns |
 | `.arsenal/design/mockups/<screen>.{jsx,tsx,html,png,figma-export.json}` (optional but recommended) | Design briefs translate mockup regions to component implementations |
 
-If TASKS.md / UX.md / DESIGN_SYSTEM.md don't exist, tell the user to run `/anchor-files` first.
+If TASKS.md / UX.md / DESIGN_SYSTEM.md don't exist, tell the user to run `/arsenal-build:anchor-files` first.
 
 `impeccable` is **not** a prerequisite. If a brief comes back thin, the user may invoke impeccable manually — but the orchestrator never preflights it.
 

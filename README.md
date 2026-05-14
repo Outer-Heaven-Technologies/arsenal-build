@@ -124,24 +124,27 @@ All arsenal artifacts live under `.arsenal/` at the project root. No configurati
 
 ## Gating
 
-The build pipeline gates agent reads via `.claude/settings.json`. The first invocation of `expand-phase` writes the baseline:
+The build pipeline gates agent reads via `.claude/settings.json`. The first invocation of `expand-phase` writes the baseline (just the strategy lockdown), then computes per-phase denies on every invocation. Example for phase 2 in split mode, with in-scope features `auth-flow` and `dashboard`, and existing phase-1 and phase-3 folders:
 
 ```json
 {
   "permissions": {
     "deny": [
       "Read(.arsenal/strategy/**)",
-      "Read(.arsenal/features/**)",
-      "Read(.arsenal/tasks/**)"
+      "Read(.arsenal/features/billing.md)",
+      "Read(.arsenal/features/admin.md)",
+      "Read(.arsenal/tasks/phase-1/**)",
+      "Read(.arsenal/tasks/phase-3/**)"
     ]
   }
 }
 ```
 
 On every `expand-phase` invocation, the per-phase entries are recomputed:
-- Out-of-scope features are denied individually (split mode): `Read(.arsenal/features/<other-slug>.md)`.
+- Baseline: `Read(.arsenal/strategy/**)` is always present (strategy archive denied during build).
+- Out-of-scope features are denied individually (split mode): `Read(.arsenal/features/<other-slug>.md)`. `.arsenal/features/README.md` stays readable.
 - Other phases' task folders are denied: `Read(.arsenal/tasks/phase-X/**)`.
-- The current phase's task folder and in-scope features are left readable.
+- The current phase's task folder and in-scope features are intentionally NOT denied — they're readable.
 
 `close-feature-phase` removes the per-phase entries at phase end, restoring the broad baseline.
 

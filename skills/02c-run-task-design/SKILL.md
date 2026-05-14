@@ -39,7 +39,7 @@ The design pipeline preserves the two-stage review invariant, with the first sta
 - **Stage 1 — Visual fidelity review** replaces spec compliance as the first stage. Reviews against the design brief (which is the spec for a design task): token map adherence, locked-primitive citation, state coverage from the variant matrix, mockup ↔ code match, gap detection.
 - **Stage 2 — Code quality review** unchanged: readability, naming, prop typing, file structure, accessibility patterns, no premature abstraction.
 
-Visual fidelity is **static analysis** on web — the reviewer reads the design brief + the implemented code + the mockup and checks adherence without a live browser. (A live `claude-in-chrome` audit lives at `close-design-phase` later in the phase, run once across all surfaces shipped.)
+Visual fidelity is **static analysis** on web — the reviewer reads the design brief + the implemented code + the mockup and checks adherence without a live browser. (Cross-surface design checks are deferred to `close-design-phase`'s optional impeccable audit, which the user opts into at phase end.)
 
 ## Hardcoded data — the design pipeline's contract
 

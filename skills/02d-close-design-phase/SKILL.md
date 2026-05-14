@@ -145,7 +145,7 @@ Return to the caller:
 - **Don't auto-dispatch impeccable.** Always prompt the user first.
 - **Don't fail when impeccable is missing.** It's optional here. Note it in the summary and proceed.
 - **Don't read archived task lists speculatively.**
-- **Don't improvise finishers at this gate.** Finishers ran during the per-task pipeline (when applicable). If a cross-surface concern surfaces here, the impeccable audit + polish is the tool — not a finisher.
+- **Don't reach for per-task finishers at this gate.** The web design pipeline doesn't run finishers (those belong to the iOS variant). If a cross-surface concern surfaces here, the impeccable audit + polish is the tool.
 
 ## Integration with other skills
 

@@ -2,7 +2,7 @@
 
 Used by `run-task-design` for the visual fidelity review step. Runs after the design-implementer reports DONE. This is the design pipeline's first-stage review — it replaces "spec compliance" as the binary gate. Code quality is the next stage's concern.
 
-**Static analysis on web.** This reviewer does NOT run a live browser. It reads the design brief + the implemented code + the mockup file (if cited) and checks adherence. A live `claude-in-chrome` audit lives at `close-design-phase`, run once across all surfaces shipped in the phase.
+**Static analysis on web.** This reviewer does NOT run a live browser. It reads the design brief + the implemented code + the mockup file (if cited) and checks adherence. Cross-surface design checks (drift between surfaces, system-wide gaps) are deferred to `close-design-phase`'s optional impeccable audit, which the user opts into at phase end.
 
 Spawn with this prompt:
 
@@ -51,7 +51,7 @@ For the cited mockup region:
 - Compare layout, copy, typography hierarchy, and spacing rhythm.
 - For JSX/TSX/HTML mockups: read the mockup file and the component file side-by-side; flag structural mismatches (e.g., a `<section>` in the mockup but a `<div>` in code, copy strings that don't match, missing elements).
 - For image mockups: use the brief's region description as the reference and flag obvious structural / hierarchy mismatches you can detect statically.
-- **You cannot do pixel-perfect comparison here** (no live browser). That's `close-design-phase`'s job. Catch structural / token / state mismatches.
+- **You cannot do pixel-perfect comparison here** (no live browser). Pixel-perfect rendering is verified by the user during dev-server inspection or via `close-design-phase`'s optional impeccable audit. Your job is to catch structural / token / state mismatches that are detectable from the code + mockup statically.
 
 ### 5. Hardcoded-data discipline
 Confirm the implementer used hardcoded / placeholder data only:
@@ -88,7 +88,7 @@ OR
 ## What this reviewer does NOT check
 
 - **Code quality** — that's the downstream quality-reviewer's job (file structure, naming, prop typing, accessibility patterns, error handling for hardcoded states).
-- **Pixel-perfect visual rendering** — no live browser. That's `close-design-phase`'s optional Gate (live `claude-in-chrome` walkthrough across all surfaces shipped in the phase).
-- **Cross-surface consistency** — also `close-design-phase`'s job.
+- **Pixel-perfect visual rendering** — no live browser. Verified separately (dev-server inspection by the user, or the optional impeccable audit at `close-design-phase`).
+- **Cross-surface consistency** — deferred to `close-design-phase`'s optional impeccable audit.
 
-This stage's job is binary: did the code match the design brief? Catch the static-analyzable failures here; let the close-phase gate catch the live-browser ones.
+This stage's job is binary: did the code match the design brief? Catch the static-analyzable failures here; cross-surface and pixel-rendering concerns are addressed elsewhere.

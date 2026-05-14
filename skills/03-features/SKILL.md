@@ -69,7 +69,7 @@ The rule is enforced at the per-task level (in `run-task-feature` and its featur
 | `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, data lifecycle — drives feature-domain task expansion |
 | Phase branch with design-pipeline commits | The components this skill's tasks may wire to must be present in git history |
 
-If TASKS.md / ARCHITECTURE.md / CONVENTIONS.md don't exist, tell the user to run `/anchor-files` first. If the design half hasn't completed for this phase, run `/arsenal-build:design N` first.
+If TASKS.md / ARCHITECTURE.md / CONVENTIONS.md don't exist, tell the user to run `/arsenal-build:anchor-files` first. If the design half hasn't completed for this phase, run `/arsenal-build:design N` first.
 
 ## Runtime Environment
 

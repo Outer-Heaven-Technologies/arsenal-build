@@ -37,9 +37,9 @@ This skill refuses to run when required upstream artifacts are missing. The buil
 
 | Artifact | Required for | If missing |
 |---|---|---|
-| `.arsenal/FEATURES.md` or `.arsenal/features/` | All projects | Stop. *"Run `features` first — `anchor-files` consolidates feature specs into ARCHITECTURE.md and TASKS.md; can't proceed without them."* |
-| `.arsenal/design/UX.md` | UI projects only | Stop. *"Run `ux-{web,app}` first — `anchor-files` consolidates the page/screen inventory into TASKS.md and DESIGN_SYSTEM.md."* |
-| `.arsenal/design/DESIGN.md` | UI projects only | Stop. *"Run `design` first — `anchor-files` consolidates brand tokens into DESIGN_SYSTEM.md."* |
+| `.arsenal/FEATURES.md` or `.arsenal/features/` | All projects | Stop. *"Run `arsenal-planning:features` first — `anchor-files` consolidates feature specs into ARCHITECTURE.md and TASKS.md; can't proceed without them."* |
+| `.arsenal/design/UX.md` | UI projects only | Stop. *"Run `arsenal-planning:ux-web` or `arsenal-planning:ux-app` first — `anchor-files` consolidates the page/screen inventory into TASKS.md and DESIGN_SYSTEM.md."* |
+| `.arsenal/design/DESIGN.md` | UI projects only | Stop. *"Run `arsenal-planning:design` first — `anchor-files` consolidates brand tokens into DESIGN_SYSTEM.md."* |
 | `.arsenal/strategy/MVP_SPEC.md` | Optional context | Read if present **AND accessible** (not denied by `.claude/settings.json`). Skip silently if absent or if strategy is denied (post-execution-start state). No prompt either way. |
 | `.arsenal/design/mockups/` | Recommended for UI | Soft prompt: *"No mockups detected. The design pipeline is substantially stronger when concrete mockups are present. Run `mockups` to generate two-pass anchor briefs, then feed each into Claude Design / Stitch / Open Design / v0 and save outputs to `.arsenal/design/mockups/`. Continuing without?"* |
 
@@ -249,7 +249,7 @@ Final report:
 
 ## Anti-patterns
 
-- **Don't fall back when required artifacts are missing.** Refuse and route to the right `arsenal-planning` skills skill. The build pipeline depends on planning being complete.
+- **Don't fall back when required artifacts are missing.** Refuse and route to the right `arsenal-planning:` skill. The build pipeline depends on planning being complete.
 - **Don't ask questions whose answers are already in upstream artifacts.** Read first. Discovery is stack-only.
 - **Don't restate upstream content.** Cross-reference with precise paths (`.arsenal/design/UX.md § Onboarding`, `.arsenal/features/recipe-capture.md § Data`). Token budget is real.
 - **Don't write load-bearing rules in secondary docs.** CLAUDE.md only — subagents inherit through it. ARCHITECTURE / CONVENTIONS / DESIGN_SYSTEM may reference rules but never define them.

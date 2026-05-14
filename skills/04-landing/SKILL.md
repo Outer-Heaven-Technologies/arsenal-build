@@ -1,6 +1,6 @@
 ---
 name: landing
-description: Builds high-converting landing pages — researches the audience, structures for conversion (relevance → mechanism → confidence → action), then builds. Default stack: Astro for performance. Pairs with frontend-design for visuals. Use when the user wants a landing page, waitlist, coming-soon page, or pre-launch site.
+description: Builds high-converting landing pages — researches the audience, structures for conversion (relevance → mechanism → confidence → action), then builds. Default stack: Astro for performance. Pairs with frontend-design for visuals. Auto-fires on "build a landing page", "create a waitlist", "coming soon page", "pre-launch site", "build the marketing page". Use when the user wants a landing page, waitlist, coming-soon page, or pre-launch site.
 ---
 
 # Execute Landing
@@ -205,7 +205,7 @@ Then review against this checklist:
 
 | Skill | Relationship |
 |-------|-------------|
-| `/anchor-files` | Phase 0 may include a landing page task. This skill handles the execution of that task. |
-| `/features` | If a task in TASKS.md involves building a landing page, the implementer subagent should use this skill's structure and guidelines. |
-| `/gtm` | GTM defines the positioning and channel strategy. This skill turns that positioning into an actual page. |
+| `/arsenal-build:anchor-files` | Phase 0 may include a landing page task. This skill handles the execution of that task. |
+| `/arsenal-build:features` | If a task in TASKS.md involves building a landing page, the implementer subagent should use this skill's structure and guidelines. |
+| `/arsenal-planning:gtm` | GTM defines the positioning and channel strategy. This skill turns that positioning into an actual page. |
 | `frontend-design` / Impeccable | Handles the visual execution. This skill handles the conversion structure and copy strategy. They're complementary — this skill says *what* to build, Impeccable says *how it should look*. |

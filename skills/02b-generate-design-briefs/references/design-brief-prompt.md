@@ -1,6 +1,6 @@
 # Design Brief Subagent Prompt Template
 
-Used by `generate-design-briefs --surface web` for each `domain: design` task. Spawn a fresh-context subagent that reads the project's design sources and writes a per-task design brief.
+Used by `generate-design-briefs` for each `domain: design` task. Spawn a fresh-context subagent that reads the project's design sources and writes a per-task design brief.
 
 This skill does NOT call `impeccable:shape`. If the design source for a task is thin (no mockup, sparse DESIGN_SYSTEM coverage, novel IA), report `NEEDS_USER_RESOLUTION` for the unresolved cells. The user decides whether to invoke `impeccable:shape <surface>` manually to fill the gap and then re-run with `--force`.
 
@@ -123,8 +123,8 @@ Otherwise, three lists:
 - Above-the-fold loads in <1s; no JS-blocking fonts
 - Single primary CTA per section — no competing visual weight
 
-## Navigation script for visual gate (if a downstream visual fidelity gate runs against this surface)
-[How to reach this surface from app launch — used by any visual fidelity reviewer]
+## Where this surface renders (for the user's dev-server check)
+[How to reach this surface from app launch — used by the user when manually verifying the implementation in a dev server, and by any optional impeccable audit at `close-design-phase`.]
 
 1. Open the dev server URL: http://localhost:3000
 2. Navigate to /pricing

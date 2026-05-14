@@ -4,7 +4,7 @@ Used by `run-task-feature` for the researcher dispatch step when a task is flagg
 
 ```
 ## Research Task
-[The specific question to research — e.g., "Current best practices for Family Controls authorization flow in iOS 18+"]
+[The specific question to research — e.g., "Stripe webhook idempotency semantics and replay-safety patterns in Next.js App Router"]
 
 ## Scope
 [What the relevant feature spec / UX.md / ARCHITECTURE.md says about this task — paste the minimum relevant excerpt]

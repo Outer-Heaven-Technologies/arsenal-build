@@ -44,7 +44,7 @@ Read the ACTUAL CODE that was written (not just the implementer's report — the
    - Does the commit message include a `Spec amended: <feature-slug> — <one-line why>` note? (Run `git log --format=%B <phase-base>..HEAD -- '.arsenal/FEATURES.md' '.arsenal/features/**'` to read messages.)
    - Read the diff of the spec edit. Is the change actually additive or clarifying (Tier 1) — e.g., a new State, new alt-path, threshold tightening within the same intent, missing dependency, lifecycle clarification?
    - Or does it change the feature's user-facing intent (Tier 2 disguised as Tier 1)? Signs of disguised Tier 2: an AC's testable outcome is rewritten, an Important boundary is inverted, a User Flow happy-path step is rewritten to describe different behavior, a Data entity's identity or relationship changes.
-   - A Tier 2 change committed in-line without going through `features` is a CRITICAL spec failure — flag it, recommend reverting the spec edit and the dependent code, and re-routing through `/arsenal-planning:features` for a fresh drill.
+   - A Tier 2 change committed in-line without going through `features` is a CRITICAL spec failure — flag it, recommend reverting the spec edit and the dependent code, and re-routing through `/arsenal-planning:features` for a fresh drill (or, if arsenal-planning is not installed, hand-edit the relevant `.arsenal/FEATURES.md` / `.arsenal/features/<slug>.md` section as a deliberate spec-authoring step before re-dispatching the task).
 
 ## Critical Rule
 Do NOT trust the implementer's report. Read the code yourself. Read the commit messages yourself. The implementer may have "finished suspiciously quickly" and their report may be incomplete or optimistic.
@@ -59,7 +59,7 @@ OR
 - Extra: [what was added but not requested]
 - Misunderstood: [what was interpreted incorrectly]
 - Component-boundary: [missing `Component extended:` note on commit <sha>] OR [purely visual change detected at <file:line> — must revert and redirect to design pipeline]
-- Spec-amendment: [missing `Spec amended:` note on commit <sha>] OR [Tier 2 intent change disguised as Tier 1 amendment at <spec-file:line> — must revert spec edit + dependent code and route through `/arsenal-planning:features`]
+- Spec-amendment: [missing `Spec amended:` note on commit <sha>] OR [Tier 2 intent change disguised as Tier 1 amendment at <spec-file:line> — must revert spec edit + dependent code and route through `/arsenal-planning:features` (or hand-edit the spec section if arsenal-planning is not installed)]
 ```
 
 ## On findings
