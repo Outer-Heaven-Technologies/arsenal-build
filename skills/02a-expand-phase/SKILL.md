@@ -1,6 +1,6 @@
 ---
 name: expand-phase
-description: Expands a `TASKS.md` phase's placeholder tasks into a concrete, tagged task list grouped into `### Design tasks` and `### Feature tasks` subsections. Reads the phase header, relevant `docs/UX.md` sections, feature specs (single or split mode), and a high-level skim of `ARCHITECTURE.md` / `CONVENTIONS.md` — then generates atomic tasks tagged with `domain:` / `research:` and writes them back to `TASKS.md`. Invoked by `features` / `design` after Step 1 preflight; can be invoked directly to re-expand a phase whose feature spec or UX changed. Does NOT auto-fire on "begin work on phase N" phrasing — that's the orchestrators' territory. Use slash command for surgical re-expansion.
+description: Expands a `TASKS.md` phase's placeholder tasks into a concrete, tagged task list grouped into `### Design tasks` and `### Feature tasks` subsections. Reads the phase header, relevant `.arsenal/design/UX.md` sections, feature specs (single or split mode), and a high-level skim of `ARCHITECTURE.md` / `CONVENTIONS.md` — then generates atomic tasks tagged with `domain:` / `research:` and writes them back to `TASKS.md`. Invoked by `features` / `design` after Step 1 preflight; can be invoked directly to re-expand a phase whose feature spec or UX changed. Does NOT auto-fire on "begin work on phase N" phrasing — that's the orchestrators' territory. Use slash command for surgical re-expansion.
 ---
 
 # Expand Phase
@@ -11,18 +11,19 @@ This skill is normally invoked by `features` after Step 1 preflight (workspace s
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## When this skill expands vs. no-ops
 
@@ -41,37 +42,84 @@ Caller passes:
 - `--phase <N>` — phase number (required)
 - `--scope <shape>` — sub-scope filter (optional, default `full`):
   - `--scope full` — expand the entire phase as-defined in `TASKS.md` (default). Maps to natural-language scoping like *"expand phase 1"* or *"expand the whole phase"*.
-  - `--scope feature=<slug>` — generate tasks only for the named feature within the phase. `<slug>` matches a `planning/features/<slug>.md` filename (split mode) or a feature name from `planning/FEATURES.md` (single mode). Maps to natural-language scoping like *"expand phase 1, just the <feature-name> feature"*.
+  - `--scope feature=<slug>` — generate tasks only for the named feature within the phase. `<slug>` matches a `.arsenal/features/<slug>.md` filename (split mode) or a feature name from `.arsenal/FEATURES.md` (single mode). Maps to natural-language scoping like *"expand phase 1, just the <feature-name> feature"*.
   - `--scope user-story=<id>` — generate tasks only for the named user story within a feature. `<id>` is a story identifier from the feature spec (e.g., a `## User story` section heading or an explicit story slug). The orchestrator's Step 1 resolves the natural-language story name to the feature it belongs to plus the story id; expand-phase reads only the relevant story within the feature spec. Maps to natural-language scoping like *"just the <story-name> story within <feature>"*.
   - `--scope ux-section=<name>` — generate tasks only for the named `UX.md` section/page within the phase. `<name>` is the section heading (or a slug derived from it). Maps to natural-language scoping like *"build the <section-name>"*.
 - `--force` — optional. When set, replace existing concrete tasks instead of no-op.
 
 Files read from disk (read-only):
 
-- `docs/TASKS.md` — the phase header and metadata (which UX pages + features it covers, current task state)
-- `docs/UX.md` — the relevant sections for this phase / scope (page sections, conversion or engagement model, components needed)
-- `planning/FEATURES.md` (single mode) **or** specific `planning/features/<slug>.md` files (split mode, by exact path)
-- `docs/ARCHITECTURE.md`, `docs/CONVENTIONS.md` — high-level skim for cross-cutting constraints
+- `.arsenal/TASKS.md` — the phase header and metadata (which UX pages + features it covers, current task state)
+- `.arsenal/design/UX.md` — the relevant sections for this phase / scope (page sections, conversion or engagement model, components needed)
+- `.arsenal/FEATURES.md` (single mode) **or** specific `.arsenal/features/<slug>.md` files (split mode, by exact path)
+- `.arsenal/ARCHITECTURE.md`, `.arsenal/CONVENTIONS.md` — high-level skim for cross-cutting constraints
 
 Files written:
 
-- `docs/TASKS.md` — phase block updated in place: the placeholder line replaced with the concrete tagged task list.
+- `.arsenal/TASKS.md` — phase block updated in place: the placeholder line replaced with the concrete tagged task list.
 
 ## Workflow
+
+### Step 0: Configure phase-scoped permissions
+
+Before reading artifacts, `expand-phase` writes the gating rules to `.claude/settings.json` so the brief generators and per-task implementers (downstream) see only the in-scope features and the current phase's task folder.
+
+**Read `.arsenal/TASKS.md` first** to identify phase N's in-scope features (look at the `**FEATURES capabilities covered:**` line or equivalent in the phase header). Then resolve their paths:
+
+- **Split mode** (`.arsenal/features/` directory exists): `.arsenal/features/<slug>.md` per named feature
+- **Single mode** (`.arsenal/FEATURES.md` file exists): `.arsenal/FEATURES.md` (one file — no per-feature gating possible)
+
+**Detect existing settings.json state:**
+
+| Condition | Meaning |
+|---|---|
+| `.claude/settings.json` doesn't exist OR has no `permissions.deny` containing `Read(.arsenal/strategy/**)` | First execution phase — apply baseline lockdown (the project is transitioning from planning to build) |
+| Baseline already present | Subsequent phase — refresh the per-phase entries only, keep baseline intact |
+
+**Apply the permission set.** Read `.claude/settings.json` if it exists (preserving any non-arsenal entries the user added — arsenal owns only entries whose path begins with `.arsenal/`). Compute and write the deny list:
+
+1. **Always present (baseline):**
+   - `Read(.arsenal/strategy/**)` — strategy archive denied during build
+2. **Out-of-scope features** (split mode only): for every `.arsenal/features/*.md` file that exists in the project and is NOT in phase N's in-scope set, add a per-file deny: `Read(.arsenal/features/<other-slug>.md)`. Exclude `.arsenal/features/README.md` (the index — always readable). In single mode, skip this step (FEATURES.md is implicitly allowed).
+3. **Other phases:** for every `.arsenal/tasks/phase-*/` directory that exists and is NOT phase N, add a per-phase deny: `Read(.arsenal/tasks/phase-X/**)`.
+
+**The current phase's task folder (`.arsenal/tasks/phase-N/`) and all in-scope features are intentionally NOT denied — they're readable.**
+
+**Example for phase 2 in split mode, with in-scope features `auth-flow` and `dashboard`, and existing phase-1 and phase-3 folders:**
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(.arsenal/strategy/**)",
+      "Read(.arsenal/features/billing.md)",
+      "Read(.arsenal/features/admin.md)",
+      "Read(.arsenal/tasks/phase-1/**)",
+      "Read(.arsenal/tasks/phase-3/**)"
+    ]
+  }
+}
+```
+
+**Tell the user.** On first-ever lockdown, surface: *"First execution phase — locking down strategy archive and gating feature/task access. Edits to `.arsenal/strategy/` won't be readable by build subagents. Remove `.arsenal/`-prefixed entries from `.claude/settings.json` to revisit planning."* On subsequent phases, no announcement — just proceed.
+
+**Idempotency on re-expansion (`--force`):** the user may have changed the phase's feature scope or new phases may have appeared. Recompute the deny list from scratch and overwrite. This is the canonical refresh moment.
+
+**Gitignore upkeep:** ensure `.gitignore` at the project root excludes `.arsenal/tasks/` (per-task briefs are ephemeral, not version-controlled). Append the line if missing; create the file if absent.
 
 ### Step 1: Read scope-relevant artifacts
 
 Read only what this phase × scope needs — don't read everything:
 
 - The phase header in `TASKS.md` (which UX pages and features it covers, the goal sentence)
-- Relevant sections of `docs/UX.md`:
+- Relevant sections of `.arsenal/design/UX.md`:
   - `--scope full`: every section/page named in the phase header
   - `--scope feature=<slug>`: only sections that the named feature touches
   - `--scope user-story=<id>`: only the section(s) the named story touches (typically a subset of the feature's sections)
   - `--scope ux-section=<name>`: only that one section
 - **Feature specs** — depends on mode and scope:
-  - **Single mode** (`planning/FEATURES.md` exists): read the file, extract only the features this phase × scope covers, drop the rest from context. For `--scope user-story=<id>`, extract only the matching story within the matching feature.
-  - **Split mode** (`planning/features/` exists): read `planning/features/README.md` first to confirm which feature files this phase × scope needs, then read **only those files** (`planning/features/<slug>.md` per feature, by exact path). For `--scope user-story=<id>`, read only the parent feature file and within it focus on the matching story section. Never glob the directory.
+  - **Single mode** (`.arsenal/FEATURES.md` exists): read the file, extract only the features this phase × scope covers, drop the rest from context. For `--scope user-story=<id>`, extract only the matching story within the matching feature.
+  - **Split mode** (`.arsenal/features/` exists): read `.arsenal/features/README.md` first to confirm which feature files this phase × scope needs, then read **only those files** (`.arsenal/features/<slug>.md` per feature, by exact path). For `--scope user-story=<id>`, read only the parent feature file and within it focus on the matching story section. Never glob the directory.
 - High-level skim of `ARCHITECTURE.md` and `CONVENTIONS.md` for cross-cutting constraints (data flow, schema, style rules)
 
 ### Step 2: Generate concrete tasks
@@ -132,12 +180,12 @@ Tasks are written into two subsections per phase: **Design tasks** first, **Feat
 
 ### Design tasks
 - [ ] Build Landing → Hero section component *(see UX.md → Landing § 1; domain: design, research: no)*
-- [ ] Build Landing → Email capture form component *(see `planning/features/email-capture.md` § AC#1; domain: design, research: no)*
+- [ ] Build Landing → Email capture form component *(see `.arsenal/features/email-capture.md` § AC#1; domain: design, research: no)*
 
 ### Feature tasks
-- [ ] Wire Stripe checkout webhook handler *(see `planning/features/payments.md` § Webhook; domain: feature, research: yes — Stripe API)*
-- [ ] Add Postgres migration for Subscription table *(see `planning/features/payments.md` § Data; domain: feature, research: no)*
-- [ ] Wire email capture form to Kit API *(see `planning/features/email-capture.md` § Data; domain: feature, research: no)*
+- [ ] Wire Stripe checkout webhook handler *(see `.arsenal/features/payments.md` § Webhook; domain: feature, research: yes — Stripe API)*
+- [ ] Add Postgres migration for Subscription table *(see `.arsenal/features/payments.md` § Data; domain: feature, research: no)*
+- [ ] Wire email capture form to Kit API *(see `.arsenal/features/email-capture.md` § Data; domain: feature, research: no)*
 ```
 
 Use the actual path that exists for the project — split-mode references use specific file paths, single-mode references use `FEATURES.md → <feature>` syntax. Don't include both in a real TASKS.md, just pick what matches the project structure.
@@ -146,7 +194,7 @@ If a phase has no design tasks (pure backend / data / infra phase), still emit t
 
 ### Step 5: Confirm with user, then drop context
 
-Confirm the expanded task list with the user before reporting back to the caller. **At this point, drop feature specs and `UX.md` from your own context** — once the task list is written and confirmed, the briefs (`generate-design-briefs` and `generate-feature-briefs` write them next, per domain) and `TASKS.md` are the working artifacts. In split mode, this means closing the specific feature files that were opened during this expansion; in single mode, releasing `FEATURES.md`. The `planning/features/README.md` index can stay accessible (it's tiny) for cross-phase reference.
+Confirm the expanded task list with the user before reporting back to the caller. **At this point, drop feature specs and `UX.md` from your own context** — once the task list is written and confirmed, the briefs (`generate-design-briefs` and `generate-feature-briefs` write them next, per domain) and `TASKS.md` are the working artifacts. In split mode, this means closing the specific feature files that were opened during this expansion; in single mode, releasing `FEATURES.md`. The `.arsenal/features/README.md` index can stay accessible (it's tiny) for cross-phase reference.
 
 ### Step 6: Return to caller
 
@@ -166,7 +214,7 @@ The caller's next step is to generate briefs for every task; this skill does not
 
 ## Anti-patterns — never do these
 
-- **Don't bypass the deny rules.** If `.claude/settings.json` denies `Read(planning/features/*)`, read only the specific feature files for this phase × scope by exact path — the legitimate way to opt in. Listing the whole directory or globbing it defeats the isolation that split mode is designed for.
+- **Don't bypass the deny rules.** If `.claude/settings.json` denies `Read(.arsenal/features/*)`, read only the specific feature files for this phase × scope by exact path — the legitimate way to opt in. Listing the whole directory or globbing it defeats the isolation that split mode is designed for.
 - **Don't ship the wrong tag set for the domain.** Tasks get `domain:` + `research:`. Stray tags (`finishers:`, `snapshot:`) are a defect.
 - **Don't emit tasks outside the subsection structure.** Every task line lives under either `### Design tasks` or `### Feature tasks` for its phase. Mixed-order task lines under the bare phase header are a defect — downstream orchestrators look tasks up by subsection.
 - **Don't mix domains in a single task.** A task that says "build the component AND wire it to the API" must be split into two tasks. Design produces visual surfaces with hardcoded data; feature wires them to real data. Mixing them collapses the pipeline separation.
@@ -177,8 +225,8 @@ The caller's next step is to generate briefs for every task; this skill does not
 | Skill | Relationship |
 |---|---|
 | `/arsenal-build:features` | Invokes this skill at Step 2 after its own Step 1 preflight. Hand-off point: phase number + resolved scope arg. |
-| `/arsenal-build:generate-design-briefs` | Runs *after* this skill, during the design half. Reads the `### Design tasks` subsection from `TASKS.md` and writes per-task context briefs + design briefs (`.tasks/phase-N/task-N-{context,design}.md`) for `domain: design` tasks. |
-| `/arsenal-build:generate-feature-briefs` | Runs *after* this skill, during the feature half (after the design pipeline closes). Reads the `### Feature tasks` subsection and writes per-task context briefs (`.tasks/phase-N/task-N-context.md`) with an `## Available components` manifest sourced from design-pipeline commits. |
+| `/arsenal-build:generate-design-briefs` | Runs *after* this skill, during the design half. Reads the `### Design tasks` subsection from `TASKS.md` and writes per-task context briefs + design briefs (`.arsenal/tasks/phase-N/task-N-{context,design}.md`) for `domain: design` tasks. |
+| `/arsenal-build:generate-feature-briefs` | Runs *after* this skill, during the feature half (after the design pipeline closes). Reads the `### Feature tasks` subsection and writes per-task context briefs (`.arsenal/tasks/phase-N/task-N-context.md`) with an `## Available components` manifest sourced from design-pipeline commits. |
 | `/arsenal-planning:features` | Upstream — produces the feature specs this skill reads. Updates to feature specs after a phase has been expanded may warrant a `--force` re-expansion. |
 | `/arsenal-planning:ux-web` / `/arsenal-planning:ux-app` / `/arsenal-planning:ux-ios` | Upstream — produce the `UX.md` this skill reads. Updates to `UX.md` after a phase has been expanded may warrant a `--force` re-expansion. |
 | `/arsenal-build:anchor-files` | Upstream — produces the `TASKS.md` placeholder phase scaffold this skill expands. |

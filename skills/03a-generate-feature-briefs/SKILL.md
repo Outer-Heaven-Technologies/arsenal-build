@@ -11,22 +11,23 @@ This skill is normally invoked by `features` after `close-design-phase` has comm
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## When this skill writes vs. no-ops
 
-| State of `.tasks/phase-{N}/task-{N}-context.md` | Behavior |
+| State of `.arsenal/tasks/phase-{N}/task-{N}-context.md` | Behavior |
 |---|---|
 | Does not exist | Generate the brief from disk reads. |
 | Exists and `--force` not set | Skip with status `SKIPPED — brief exists`. Mirrors L1 idempotence. |
@@ -44,11 +45,11 @@ Caller passes:
 
 Files read from disk (read-only):
 
-- `docs/TASKS.md` — to discover task tags (`domain:`, `research:`) and locate each `domain: feature` task under the phase's `### Feature tasks` subsection. Re-read here rather than trusting orchestrator state, so direct invocation works.
-- `planning/FEATURES.md` (single mode) or `planning/features/<slug>.md` (split mode, by exact path) — scope-relevant feature spec section per task.
-- `docs/ARCHITECTURE.md` — data flow / integration / schema excerpts per task.
-- `docs/CONVENTIONS.md` — 2–4 patterns most relevant to each task (data-fetch, mutation, server-handler, etc.).
-- `docs/DESIGN_SYSTEM.md` — primitive cites by `§ X.Y` for components this task wires to; never paste content, only cite. Also read for the project's component-path convention (e.g., `components/ui/`).
+- `.arsenal/TASKS.md` — to discover task tags (`domain:`, `research:`) and locate each `domain: feature` task under the phase's `### Feature tasks` subsection. Re-read here rather than trusting orchestrator state, so direct invocation works.
+- `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` (split mode, by exact path) — scope-relevant feature spec section per task.
+- `.arsenal/ARCHITECTURE.md` — data flow / integration / schema excerpts per task.
+- `.arsenal/CONVENTIONS.md` — 2–4 patterns most relevant to each task (data-fetch, mutation, server-handler, etc.).
+- `.arsenal/design/DESIGN_SYSTEM.md` — primitive cites by `§ X.Y` for components this task wires to; never paste content, only cite. Also read for the project's component-path convention (e.g., `components/ui/`).
 - **Available component paths** — components this task may wire to. Source in priority order:
   1. Git log on the current phase branch (`git log <phase-base>..HEAD -- 'components/**'` or similar) to enumerate paths the design pipeline committed earlier this phase.
   2. If git history isn't reliable (mid-refactor, no merge base resolved), fall back to a `find components -name '*.{tsx,jsx,vue,svelte}'` style enumeration scoped to the project's declared component root.
@@ -56,19 +57,19 @@ Files read from disk (read-only):
 
 Files written:
 
-- `.tasks/phase-{N}/task-{N}-context.md` per `domain: feature` task in scope — context brief, ≤3,000 tokens (~12,000 chars).
+- `.arsenal/tasks/phase-{N}/task-{N}-context.md` per `domain: feature` task in scope — context brief, ≤3,000 tokens (~12,000 chars).
 
 ## Workflow
 
 ### Step 1: Read TASKS.md and resolve scope
 
-Read `docs/TASKS.md` for phase `<N>`. Locate the `### Feature tasks` subsection. If the subsection is missing or contains only the placeholder line (`_None — pure feature-domain phase._` or `Tasks not yet generated`), report `NEEDS_EXPANSION` and stop — the orchestrator should run `expand-phase` first.
+Read `.arsenal/TASKS.md` for phase `<N>`. Locate the `### Feature tasks` subsection. If the subsection is missing or contains only the placeholder line (`_None — pure feature-domain phase._` or `Tasks not yet generated`), report `NEEDS_EXPANSION` and stop — the orchestrator should run `expand-phase` first.
 
 For each task in the subsection (or just `--task <N>` if specified):
 
 1. Confirm the task's `domain:` tag is `feature`. If not, skip with a defect warning (expand-phase emitted a misplaced task).
 2. Parse `research: yes/no`.
-3. Check whether `.tasks/phase-{N}/task-{N}-context.md` already exists.
+3. Check whether `.arsenal/tasks/phase-{N}/task-{N}-context.md` already exists.
    - Exists and `--force` not set → skip, mark `SKIPPED — brief exists`.
    - Exists and `--force` set → continue, will overwrite.
    - Does not exist → continue.
@@ -87,12 +88,12 @@ If no design-pipeline commits exist on this branch (the design pipeline hasn't r
 
 ### Step 3: Write the per-task context brief
 
-For each in-scope task, write the brief at `.tasks/phase-{N}/task-{N}-context.md`. **Brief budget: ≤3,000 tokens (~12,000 characters).** Summarize down rather than paste full sections. **If a task genuinely needs more context than 3k tokens, that's a signal the task is too big — report `TASK_TOO_BIG` and recommend the caller re-run `expand-phase --force` to split it.**
+For each in-scope task, write the brief at `.arsenal/tasks/phase-{N}/task-{N}-context.md`. **Brief budget: ≤3,000 tokens (~12,000 characters).** Summarize down rather than paste full sections. **If a task genuinely needs more context than 3k tokens, that's a signal the task is too big — report `TASK_TOO_BIG` and recommend the caller re-run `expand-phase --force` to split it.**
 
 The context brief contains only:
 
 - The task description verbatim from `TASKS.md` (including its inline tag line)
-- The relevant feature spec section (or AC subset) — sourced from `FEATURES.md` (single mode) or `planning/features/<slug>.md` (split mode)
+- The relevant feature spec section (or AC subset) — sourced from `FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` (split mode)
 - The 2–4 `CONVENTIONS.md` patterns most relevant to this task (data fetching, mutation, server handlers, etc.)
 - `ARCHITECTURE.md` excerpts relevant to this task (data flow, integration, schema)
 - `DESIGN_SYSTEM.md` component cites by `§ X.Y` for primitives this task may reference — these are read-only inputs.
@@ -133,5 +134,5 @@ The caller's next step is to execute each feature task via `run-task-feature`; t
 | `/arsenal-build:features` | Invokes this skill at Step 2 after `close-design-phase` returns. Hand-off: phase number. |
 | `/arsenal-build:expand-phase` | Runs **before** this skill (via the orchestrator). Writes the concrete tagged task list with `domain:` tags this skill reads from `TASKS.md`. |
 | `/arsenal-build:generate-design-briefs` | Sibling skill. Runs **before** this skill in the phase (during the design half of the pipeline). Writes context + design briefs for design-domain tasks. This skill never touches those tasks. |
-| `/arsenal-build:run-task-feature` | Runs **after** this skill, per task. Reads briefs from `.tasks/phase-{N}/` by path. |
+| `/arsenal-build:run-task-feature` | Runs **after** this skill, per task. Reads briefs from `.arsenal/tasks/phase-{N}/` by path. |
 | `/arsenal-build:close-design-phase` | Runs **before** this skill in the phase pipeline. Commits the components this skill manifests as available inputs. |

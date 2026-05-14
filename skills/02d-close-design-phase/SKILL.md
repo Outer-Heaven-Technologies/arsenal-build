@@ -1,6 +1,6 @@
 ---
 name: close-design-phase
-description: Closes the DESIGN half of a development phase for web/frontend projects by running two gates in order — design QA review across surfaces shipped (optional impeccable audit, gateable; never automatic) → docs update (if scope drifted). Writes a brief design-pipeline summary to `.tasks/phase-N/design-summary.md` for the feature pipeline's PR body to reference. Does NOT push, does NOT open a PR, does NOT trim TASKS.md, does NOT run CodeRabbit (all of that happens at `close-feature-phase`, the phase terminus). Invoked by `design` at the end of the design half, or directly to wrap up a design half whose per-task work already landed. Use when the design tasks are all `[x]` and the user is about to hand off to the feature pipeline.
+description: Closes the DESIGN half of a development phase for web/frontend projects by running two gates in order — design QA review across surfaces shipped (optional impeccable audit, gateable; never automatic) → docs update (if scope drifted). Writes a brief design-pipeline summary to `.arsenal/tasks/phase-N/design-summary.md` for the feature pipeline's PR body to reference. Does NOT push, does NOT open a PR, does NOT trim TASKS.md, does NOT run CodeRabbit (all of that happens at `close-feature-phase`, the phase terminus). Invoked by `design` at the end of the design half, or directly to wrap up a design half whose per-task work already landed. Use when the design tasks are all `[x]` and the user is about to hand off to the feature pipeline.
 ---
 
 # Close Design Phase — Web
@@ -11,18 +11,19 @@ This skill is normally invoked by `design` after every design-domain task in the
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## Where this fits in the phase pipeline
 
@@ -49,18 +50,18 @@ The web design pipeline doesn't use per-task finishers; the optional audit here 
 
 | File / state | Used for |
 |---|---|
-| `docs/TASKS.md` | Phase block with `### Design tasks` all `[x]`. This skill does not modify the file (trimming is `close-feature-phase`'s job). |
-| `.tasks/phase-N/` | Working dir; this skill writes `.tasks/phase-N/design-summary.md` for the feature pipeline to read later. |
+| `.arsenal/TASKS.md` | Phase block with `### Design tasks` all `[x]`. This skill does not modify the file (trimming is `close-feature-phase`'s job). |
+| `.arsenal/tasks/phase-N/` | Working dir; this skill writes `.arsenal/tasks/phase-N/design-summary.md` for the feature pipeline to read later. |
 | Phase branch checked out (`phase-N/short-description`) | All design-pipeline commits already on it. |
-| `docs/DESIGN_SYSTEM.md` | Read for the project's component-root path and token convention (for the optional audit). |
+| `.arsenal/design/DESIGN_SYSTEM.md` | Read for the project's component-root path and token convention (for the optional audit). |
 | `impeccable` skill installed (OPTIONAL) | Required only if the user opts in to Gate 1's impeccable audit. Soft-prompt; never block on absence. |
 
 ## Inputs (for direct invocation)
 
 When invoked directly, the caller passes the phase number (e.g., `N=1`). All other state is read from disk:
 
-- `docs/TASKS.md` (read at Gate 1 to enumerate surfaces shipped)
-- `.tasks/phase-N/task-N-design.md` files (read at Gate 1 to aggregate variant coverage / mockup pointers across surfaces)
+- `.arsenal/TASKS.md` (read at Gate 1 to enumerate surfaces shipped)
+- `.arsenal/tasks/phase-N/task-N-design.md` files (read at Gate 1 to aggregate variant coverage / mockup pointers across surfaces)
 - Phase branch must already be checked out
 
 ## The two gates
@@ -71,7 +72,7 @@ When invoked directly, the caller passes the phase number (e.g., `N=1`). All oth
 
 For each `domain: design` task in this phase (`### Design tasks` subsection of TASKS.md, all `[x]`):
 
-- Read `.tasks/phase-N/task-N-design.md` to identify the surface implemented, the mockup pointer, and the variant coverage that was supposed to land.
+- Read `.arsenal/tasks/phase-N/task-N-design.md` to identify the surface implemented, the mockup pointer, and the variant coverage that was supposed to land.
 - Note the implemented component path.
 
 Build a phase-level summary: which surfaces shipped, which mockup regions were translated, which states were rendered. This summary feeds Step B (optional impeccable audit) and the `design-summary.md` artifact.
@@ -105,11 +106,11 @@ If the phase shipped 2+ surfaces, audit each separately and aggregate findings i
 When updates are warranted:
 - Note any design decisions made during implementation in the Key Decisions Log.
 - If a mockup ↔ DESIGN_SYSTEM gap was resolved (DESIGN_SYSTEM updated to match a mockup value), confirm the update committed and note it in the summary.
-- If a feature spec's design-relevant section drifted from what was built, flag for a follow-up `planning/features/` update — don't edit specs inline.
+- If a feature spec's design-relevant section drifted from what was built, flag for a follow-up `.arsenal/features/` update — don't edit specs inline.
 
 ### After both gates: write the design-summary.md and report
 
-Write `.tasks/phase-N/design-summary.md` for the feature pipeline (and ultimately the PR body at `close-feature-phase` Gate 6) to read:
+Write `.arsenal/tasks/phase-N/design-summary.md` for the feature pipeline (and ultimately the PR body at `close-feature-phase` Gate 6) to read:
 
 ```markdown
 # Phase N — Design half summary
@@ -132,7 +133,7 @@ Return to the caller:
 - **Audit findings:** Critical: A, Important: B, Minor: C — or "skipped"
 - **Audit fixes committed:** count
 - **Docs updated:** yes | no
-- **`design-summary.md`:** written to `.tasks/phase-N/design-summary.md`
+- **`design-summary.md`:** written to `.arsenal/tasks/phase-N/design-summary.md`
 - **Branch state:** clean and ready for the feature pipeline
 
 ## Anti-patterns — never do these
@@ -150,8 +151,8 @@ Return to the caller:
 
 | Skill | Relationship |
 |---|---|
-| `/arsenal-build:design` | Invokes this skill at the end of the design half. Hand-off point: all design-task commits landed, branch checked out, `.tasks/phase-N/` populated. |
-| `/arsenal-build:close-feature-phase` | Runs **after** this skill (after the feature half). Reads `.tasks/phase-N/design-summary.md` to compose the PR body. |
+| `/arsenal-build:design` | Invokes this skill at the end of the design half. Hand-off point: all design-task commits landed, branch checked out, `.arsenal/tasks/phase-N/` populated. |
+| `/arsenal-build:close-feature-phase` | Runs **after** this skill (after the feature half). Reads `.arsenal/tasks/phase-N/design-summary.md` to compose the PR body. |
 | `/arsenal-build:run-task-design` | Per-task pipeline that ran during the design half. Audit fix dispatches at Gate 1B reuse its design-implementer prompt. |
 | `impeccable` (specifically `:audit` and `:polish`) | Gate 1B dispatch, ONLY if the user opts in. Never automatic. |
 | `coderabbit:review` | **Not invoked here.** Runs once at `close-feature-phase` Gate 4 across the entire phase. |

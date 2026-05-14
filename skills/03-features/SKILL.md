@@ -11,18 +11,19 @@ This is the second half of the per-phase pipeline. The design half (`design` →
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## The phase pipeline — strict sequence per phase
 
@@ -61,11 +62,11 @@ The rule is enforced at the per-task level (in `run-task-feature` and its featur
 
 | File | Used For |
 |------|----------|
-| `docs/TASKS.md` | Phase block in concrete-tasks state with `### Design tasks` and `### Feature tasks` subsections (this skill iterates the latter) |
-| `docs/ARCHITECTURE.md` | System overview, data flow, schema — excerpted into the per-task feature briefs |
-| `docs/CONVENTIONS.md` | Code patterns, library idioms — quality standards for review |
-| `docs/DESIGN_SYSTEM.md` | Declares the project's component-root path; used by the feature-implementer to know which files are design surfaces |
-| `planning/FEATURES.md` (single mode) or `planning/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, data lifecycle — drives feature-domain task expansion |
+| `.arsenal/TASKS.md` | Phase block in concrete-tasks state with `### Design tasks` and `### Feature tasks` subsections (this skill iterates the latter) |
+| `.arsenal/ARCHITECTURE.md` | System overview, data flow, schema — excerpted into the per-task feature briefs |
+| `.arsenal/CONVENTIONS.md` | Code patterns, library idioms — quality standards for review |
+| `.arsenal/design/DESIGN_SYSTEM.md` | Declares the project's component-root path; used by the feature-implementer to know which files are design surfaces |
+| `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, data lifecycle — drives feature-domain task expansion |
 | Phase branch with design-pipeline commits | The components this skill's tasks may wire to must be present in git history |
 
 If TASKS.md / ARCHITECTURE.md / CONVENTIONS.md don't exist, tell the user to run `/anchor-files` first. If the design half hasn't completed for this phase, run `/arsenal-build:design N` first.
@@ -99,22 +100,23 @@ If TASKS.md / ARCHITECTURE.md / CONVENTIONS.md don't exist, tell the user to run
 
 **Context protection:**
 
-If a `planning/` directory exists, set up Read deny rules so planning docs aren't loaded during development:
+If an `.arsenal/` directory exists, set up Read deny rules so strategy and feature spec docs aren't loaded during development:
 
-- **Single mode** (`planning/FEATURES.md` exists): suggest `Read(planning/*)` deny.
-- **Split mode** (`planning/features/` directory exists): suggest `Read(planning/features/*)` deny but **allow** `Read(planning/features/README.md)`.
+- **Strategy archive:** always deny `Read(.arsenal/strategy/**)` during build.
+- **Single mode** (`.arsenal/FEATURES.md` exists): suggest `Read(.arsenal/FEATURES.md)` deny; per-phase allow rules are added by `expand-phase`.
+- **Split mode** (`.arsenal/features/` directory exists): suggest `Read(.arsenal/features/*)` deny but **allow** `Read(.arsenal/features/README.md)`.
 
 Example `.claude/settings.json` for split mode:
 ```json
 {
   "permissions": {
-    "deny": ["Read(planning/features/*)"],
-    "allow": ["Read(planning/features/README.md)"]
+    "deny": ["Read(.arsenal/features/*)"],
+    "allow": ["Read(.arsenal/features/README.md)"]
   }
 }
 ```
 
-**Create / verify the phase working directory:** `.tasks/phase-N/` should exist from the design half. Confirm it does; if not (pure feature-domain phase), create it.
+**Create / verify the phase working directory:** `.arsenal/tasks/phase-N/` should exist from the design half. Confirm it does; if not (pure feature-domain phase), create it.
 
 ### Step 2: Generate feature briefs (hand-off)
 
@@ -132,7 +134,7 @@ Then hand off to `generate-feature-briefs`:
 /arsenal-build:generate-feature-briefs --phase N [--task <N>] [--force]
 ```
 
-That skill writes per-task context briefs to `.tasks/phase-N/task-N-context.md` (≤3k tokens, every feature task). Each brief carries an `## Available components` section enumerating the components the design pipeline committed earlier in this phase (sourced via `git log` on the phase branch). Idempotent by default (L1 contract).
+That skill writes per-task context briefs to `.arsenal/tasks/phase-N/task-N-context.md` (≤3k tokens, every feature task). Each brief carries an `## Available components` section enumerating the components the design pipeline committed earlier in this phase (sourced via `git log` on the phase branch). Idempotent by default (L1 contract).
 
 The controller (this orchestrator) does **not** read brief contents after `generate-feature-briefs` reports DONE — `run-task-feature` reads briefs by path during Step 3 dispatch.
 
@@ -168,7 +170,7 @@ Once every feature task is committed and `[x]`-marked, hand off to `close-featur
 /arsenal-build:close-feature-phase N
 ```
 
-That skill runs the phase-final gate sequence: final integration test → Playwright test coverage (if configured) → docs update (if scope drifted) → CodeRabbit review (hard gate, runs across the entire phase including design-pipeline commits) → trim `TASKS.md` + archive `.tasks/phase-N/` → push branch + open PR.
+That skill runs the phase-final gate sequence: final integration test → Playwright test coverage (if configured) → docs update (if scope drifted) → CodeRabbit review (hard gate, runs across the entire phase including design-pipeline commits) → trim `TASKS.md` + archive `.arsenal/tasks/phase-N/` → push branch + open PR.
 
 CodeRabbit covers the full phase (design + feature commits together) — this is why it runs at the feature close, not the design close. Single CodeRabbit pass per PR.
 

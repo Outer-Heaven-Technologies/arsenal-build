@@ -12,7 +12,7 @@ Used by `run-task-feature` for the researcher dispatch step when a task is flagg
 ## Your Job
 1. Use available web search and documentation tools to gather current, authoritative best practices.
 2. Focus on: API patterns, common pitfalls, version-specific concerns, security/privacy considerations.
-3. Output a single markdown file at `.tasks/phase-N/task-N-research.md` with:
+3. Output a single markdown file at `.arsenal/tasks/phase-N/task-N-research.md` with:
    - Summary (3-5 bullet points)
    - Recommended pattern (with code if relevant)
    - Pitfalls to avoid
@@ -27,6 +27,6 @@ Used by `run-task-feature` for the researcher dispatch step when a task is flagg
 
 ## Isolation rules (controller enforces)
 
-- Research files live only at `.tasks/phase-N/task-N-research.md` — never shared paths.
+- Research files live only at `.arsenal/tasks/phase-N/task-N-research.md` — never shared paths.
 - The controller confirms the file was written but does not read its contents.
 - Each task gets a fresh research pass — no caching across tasks even when the same API recurs.

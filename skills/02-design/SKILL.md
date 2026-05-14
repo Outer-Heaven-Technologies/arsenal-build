@@ -11,18 +11,19 @@ This is the first half of the per-phase pipeline. The design half commits visual
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## The phase pipeline — strict sequence per phase
 
@@ -68,14 +69,14 @@ The user can also invoke an impeccable audit pass at `close-design-phase` as a s
 
 | File | Used For |
 |------|----------|
-| `docs/TASKS.md` | Phase block in concrete-tasks state with `### Design tasks` and `### Feature tasks` subsections (this skill iterates the former) |
-| `docs/UX.md` | UX/IA, page sections, components per page — excerpted into design briefs |
-| `docs/DESIGN.md` | Brand spec, do-not-edit — cited from design briefs |
-| `docs/DESIGN_SYSTEM.md` | Stack-specific implementation, token map, primitive cites — excerpted into design briefs; declares component-root path |
-| `docs/CONVENTIONS.md` | View-structure patterns — excerpted into design briefs |
-| `docs/ARCHITECTURE.md` | High-level skim only (the design pipeline doesn't need full architecture) |
-| `planning/FEATURES.md` (single mode) or `planning/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, copy locks, anti-patterns |
-| `docs/mockups/<screen>.{jsx,tsx,html,png,figma-export.json}` (optional but recommended) | Design briefs translate mockup regions to component implementations |
+| `.arsenal/TASKS.md` | Phase block in concrete-tasks state with `### Design tasks` and `### Feature tasks` subsections (this skill iterates the former) |
+| `.arsenal/design/UX.md` | UX/IA, page sections, components per page — excerpted into design briefs |
+| `.arsenal/design/DESIGN.md` | Brand spec, do-not-edit — cited from design briefs |
+| `.arsenal/design/DESIGN_SYSTEM.md` | Stack-specific implementation, token map, primitive cites — excerpted into design briefs; declares component-root path |
+| `.arsenal/CONVENTIONS.md` | View-structure patterns — excerpted into design briefs |
+| `.arsenal/ARCHITECTURE.md` | High-level skim only (the design pipeline doesn't need full architecture) |
+| `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, copy locks, anti-patterns |
+| `.arsenal/design/mockups/<screen>.{jsx,tsx,html,png,figma-export.json}` (optional but recommended) | Design briefs translate mockup regions to component implementations |
 
 If TASKS.md / UX.md / DESIGN_SYSTEM.md don't exist, tell the user to run `/anchor-files` first.
 
@@ -99,12 +100,13 @@ If TASKS.md / UX.md / DESIGN_SYSTEM.md don't exist, tell the user to run `/ancho
 
 **Context protection:**
 
-If a `planning/` directory exists, set up Read deny rules so planning docs aren't loaded during development:
+If an `.arsenal/` directory exists, set up Read deny rules so strategy and feature spec docs aren't loaded during development:
 
-- **Single mode** (`planning/FEATURES.md` exists): suggest `Read(planning/*)` deny.
-- **Split mode** (`planning/features/` directory exists): suggest `Read(planning/features/*)` deny but **allow** `Read(planning/features/README.md)`.
+- **Strategy archive:** always deny `Read(.arsenal/strategy/**)` during build.
+- **Single mode** (`.arsenal/FEATURES.md` exists): suggest `Read(.arsenal/FEATURES.md)` deny; per-phase allow rules are added by `expand-phase`.
+- **Split mode** (`.arsenal/features/` directory exists): suggest `Read(.arsenal/features/*)` deny but **allow** `Read(.arsenal/features/README.md)`.
 
-**Create the phase working directory:** `.tasks/phase-N/` for this phase's working files (context briefs, design briefs, research files).
+**Create the phase working directory:** `.arsenal/tasks/phase-N/` for this phase's working files (context briefs, design briefs, research files).
 
 ### Step 2: Expand Tasks & Generate Design Briefs
 
@@ -130,7 +132,7 @@ After `expand-phase` returns, hand off design-brief generation to `generate-desi
 /arsenal-build:generate-design-briefs --phase N [--task <N>] [--force]
 ```
 
-That skill writes per-task context briefs to `.tasks/phase-N/task-N-context.md` (≤3k tokens) AND per-task design briefs to `.tasks/phase-N/task-N-design.md` (≤1.7k tokens) for every `domain: design` task. Idempotent by default (L1 contract).
+That skill writes per-task context briefs to `.arsenal/tasks/phase-N/task-N-context.md` (≤3k tokens) AND per-task design briefs to `.arsenal/tasks/phase-N/task-N-design.md` (≤1.7k tokens) for every `domain: design` task. Idempotent by default (L1 contract).
 
 If the design brief subagent reports a thin brief or a `MOCKUP_DS_GAP_BLOCKING`, this orchestrator surfaces the gap to the user and pauses. The user decides whether to invoke `impeccable:shape <surface>` manually (or update the brief / DESIGN_SYSTEM by hand) and then re-run with `--force`. **This orchestrator never auto-dispatches impeccable.**
 
@@ -168,7 +170,7 @@ Once every design task is committed and `[x]`-marked, hand off to `close-design-
 /arsenal-build:close-design-phase N
 ```
 
-That skill runs the design-pipeline wrap: design QA review (visual fidelity at scale across surfaces shipped) → optional impeccable audit (gateable; soft-prompt user — never automatic) → docs update (if scope drifted) → trim the design-task block in TASKS.md / annotate `.tasks/phase-N/` for the feature pipeline.
+That skill runs the design-pipeline wrap: design QA review (visual fidelity at scale across surfaces shipped) → optional impeccable audit (gateable; soft-prompt user — never automatic) → docs update (if scope drifted) → trim the design-task block in TASKS.md / annotate `.arsenal/tasks/phase-N/` for the feature pipeline.
 
 **`close-design-phase` does NOT push and does NOT open a PR.** It returns the branch to the orchestrator. The feature pipeline's `close-feature-phase` opens the single PR per phase at the end.
 

@@ -18,7 +18,7 @@ The skill's value is the **independence gate** (Step 2) and the **reconciliation
 | 2 ≤ N ≤ 5 | **Normal case.** Run the independence gate, then dispatch. |
 | N ≥ 6 | **Hard refuse.** Reconciliation cost on >5 results exceeds parallel benefit, and the user is likely modeling the wrong problem — recommend `/arsenal-build:features` with a TASKS.md phase instead. |
 
-Per-investigation idempotence: if `.tasks/parallel/<run-id>/investigation-{N}-result.md` already exists at the canonical path, that investigation is skipped with status `SKIPPED — result exists` unless `--force` is set.
+Per-investigation idempotence: if `.arsenal/tasks/parallel/<run-id>/investigation-{N}-result.md` already exists at the canonical path, that investigation is skipped with status `SKIPPED — result exists` unless `--force` is set.
 
 ## Inputs
 
@@ -37,8 +37,8 @@ Files this skill reads (read-only):
 
 Files written:
 
-- `.tasks/parallel/<run-id>/investigation-{N}-result.md` per investigation (≤3,000 tokens / ~12,000 chars — same budget as context briefs)
-- `.tasks/parallel/<run-id>/SUMMARY.md` — aggregated report
+- `.arsenal/tasks/parallel/<run-id>/investigation-{N}-result.md` per investigation (≤3,000 tokens / ~12,000 chars — same budget as context briefs)
+- `.arsenal/tasks/parallel/<run-id>/SUMMARY.md` — aggregated report
 
 **Run-id format:** `YYYY-MM-DD-HHMMSS` (timestamp). Naturally orderable and unique per dispatch.
 
@@ -84,9 +84,9 @@ After all N investigators report back:
 - Parse the investigation list from `--investigation` repeats or `--from-file`.
 - Count check: reject 0; refuse-with-suggestion 1; normal 2–5; hard-refuse 6+.
 - Compute `<run-id>` = current timestamp `YYYY-MM-DD-HHMMSS`.
-- If a `.tasks/parallel/<run-id>/` directory already exists (extremely rare collision OR user re-running same run-id): require `--force` to overwrite.
+- If a `.arsenal/tasks/parallel/<run-id>/` directory already exists (extremely rare collision OR user re-running same run-id): require `--force` to overwrite.
 - Per-investigation idempotence: when re-dispatching (e.g., a prior run failed partially), check each `investigation-{N}-result.md` — skip those that exist unless `--force`.
-- `mkdir -p .tasks/parallel/<run-id>/`.
+- `mkdir -p .arsenal/tasks/parallel/<run-id>/`.
 
 ### Step 2: Run the independence gate
 
@@ -126,7 +126,7 @@ After all N investigators report back:
 
 ### Step 6: Reconcile into SUMMARY.md
 
-Follow the algorithm in the "Reconciliation logic" section above. Write `.tasks/parallel/<run-id>/SUMMARY.md`.
+Follow the algorithm in the "Reconciliation logic" section above. Write `.arsenal/tasks/parallel/<run-id>/SUMMARY.md`.
 
 ### Step 7: Report to caller
 
@@ -139,7 +139,7 @@ Report:
 - **Cross-investigation file overlap:** count, with paths cited (informational)
 - **Aggregated recommendations:** counts by severity (Critical: A, Important: B, Suggested: C)
 - **Conflicts requiring user resolution:** count
-- **SUMMARY path:** `.tasks/parallel/<run-id>/SUMMARY.md`
+- **SUMMARY path:** `.arsenal/tasks/parallel/<run-id>/SUMMARY.md`
 - **Next-step recommendation:** based on findings — run-task / features-* / debug / discard
 
 ## Reference files
@@ -154,7 +154,7 @@ The template has bracketed placeholders. Substitute every one before dispatch �
 
 - **Don't dispatch parallel when the work isn't genuinely independent.** The triadic test is the whole skill's value. Failing the gate and refusing is the success case for the dependent-work scenario, not a defect.
 - **Don't exceed 5 parallel investigations.** Hard cap. Beyond 5, reconciliation cost outpaces parallel benefit AND the user is probably modeling the wrong problem — they likely want a TASKS.md phase via `/arsenal-build:features`.
-- **Don't accumulate investigator context in this skill's own context.** Reconciliation reads only the `Files touched` line and `Recommendations` section. Full content stays in `.tasks/parallel/<run-id>/`. Reading everything defeats the filesystem hand-off pattern (same discipline as `generate-design-briefs` / `generate-feature-briefs`).
+- **Don't accumulate investigator context in this skill's own context.** Reconciliation reads only the `Files touched` line and `Recommendations` section. Full content stays in `.arsenal/tasks/parallel/<run-id>/`. Reading everything defeats the filesystem hand-off pattern (same discipline as `generate-design-briefs` / `generate-feature-briefs`).
 - **Don't dispatch fix subagents from this skill.** Investigations report. Fixes are sequential — that's `/arsenal-build:run-task-*`. The SUMMARY recommends fix follow-ups; the user invokes them explicitly.
 - **Don't pause inside the skill for conflict resolution.** When investigations contradict each other, the SUMMARY flags the conflict in a `## Conflicts requiring user resolution` section and the skill exits cleanly. Same J3 pattern as close-phase: surface + recommend + exit; never act unilaterally.
 - **Don't re-run an investigation without `--force`.** Mirrors L1 (briefs) and M1 (tasks). Default skip if `investigation-{N}-result.md` already exists at the canonical path.

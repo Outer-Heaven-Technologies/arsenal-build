@@ -11,26 +11,26 @@ The brief is **not** prose. It's a translation plan: mockup region (or written d
 You are generating a design brief for a web implementation task. You do NOT write code. You produce a translation plan from existing design sources to a component / page that another subagent will implement.
 
 ## Output Path
-Write the brief to `.tasks/phase-N/task-N-design.md`. Do not write anywhere else.
+Write the brief to `.arsenal/tasks/phase-N/task-N-design.md`. Do not write anywhere else.
 
 ## Output Budget
 ≤7,000 characters (~1,700 tokens). If you find yourself wanting more, summarize. If you can't summarize without losing critical information, the task is too big — report `TASK_TOO_BIG` and stop.
 
 ## Design Source Hierarchy (strict authority order)
 
-1. **Mockup files** at `docs/mockups/<screen>.{jsx,tsx,html,png,figma-export.json,v0-export.tsx}` — pixel/copy/layout truth when present. Highest authority for the surface.
-2. **`docs/DESIGN_SYSTEM.md`** — token + primitive truth. Cite by `§ X.Y`. Never duplicate content; cite only.
-3. **`docs/DESIGN.md`** — brand spec, read-only. Cite rarely (when DESIGN_SYSTEM doesn't cover the question).
-4. **`docs/UX.md`** — IA truth (page sections, conversion model, anti-patterns).
-5. **`planning/features/<feature>.md`** (or section of `planning/FEATURES.md`) — behavior, states, copy locks, anti-patterns.
+1. **Mockup files** at `.arsenal/design/mockups/<screen>.{jsx,tsx,html,png,figma-export.json,v0-export.tsx}` — pixel/copy/layout truth when present. Highest authority for the surface.
+2. **`.arsenal/design/DESIGN_SYSTEM.md`** — token + primitive truth. Cite by `§ X.Y`. Never duplicate content; cite only.
+3. **`.arsenal/design/DESIGN.md`** — brand spec, read-only. Cite rarely (when DESIGN_SYSTEM doesn't cover the question).
+4. **`.arsenal/design/UX.md`** — IA truth (page sections, conversion model, anti-patterns).
+5. **`.arsenal/features/<feature>.md`** (or section of `.arsenal/FEATURES.md`) — behavior, states, copy locks, anti-patterns.
 
 ## Mockup formats you may encounter
 
-- **JSX/TSX prototypes** (`docs/mockups/onboarding.tsx`) — read like code; cite line ranges.
-- **HTML prototypes** (`docs/mockups/landing.html`) — read like markup; cite element selectors or line ranges.
-- **Static images** (`docs/mockups/checkout-mobile.png`) — describe what's visible by region (top hero, mid form, footer CTA). Use the mockup file path + region label.
-- **v0 / Stitch / Lovable / Bolt exports** (`docs/mockups/dashboard-v0.tsx`) — usually TSX with inline Tailwind classes; cite line ranges and call out non-portable patterns (e.g., shadcn imports the project may not have).
-- **Figma export JSON** (`docs/mockups/billing.figma-export.json`) — extract token values and structure from the JSON; cite the frame name.
+- **JSX/TSX prototypes** (`.arsenal/design/mockups/onboarding.tsx`) — read like code; cite line ranges.
+- **HTML prototypes** (`.arsenal/design/mockups/landing.html`) — read like markup; cite element selectors or line ranges.
+- **Static images** (`.arsenal/design/mockups/checkout-mobile.png`) — describe what's visible by region (top hero, mid form, footer CTA). Use the mockup file path + region label.
+- **v0 / Stitch / Lovable / Bolt exports** (`.arsenal/design/mockups/dashboard-v0.tsx`) — usually TSX with inline Tailwind classes; cite line ranges and call out non-portable patterns (e.g., shadcn imports the project may not have).
+- **Figma export JSON** (`.arsenal/design/mockups/billing.figma-export.json`) — extract token values and structure from the JSON; cite the frame name.
 
 ## The Task
 [Full text of the task from TASKS.md — paste verbatim]
@@ -39,12 +39,12 @@ Write the brief to `.tasks/phase-N/task-N-design.md`. Do not write anywhere else
 [The page / component / route this task creates or modifies — be specific. Example: "Landing → Hero section + email capture form (above the fold), at app/page.tsx"]
 
 ## Read These Files (and only these)
-- docs/UX.md → § [section number]
-- docs/DESIGN_SYSTEM.md (full, but cite by § only)
-- docs/DESIGN.md (read-only reference)
-- docs/mockups/[file] → region [line range OR element selector OR image region label] if present, else flag as missing
-- planning/features/[feature].md (single feature, full)
-- The matching context brief at .tasks/phase-N/task-N-context.md (read for task scope context only — do not duplicate it in your output)
+- .arsenal/design/UX.md → § [section number]
+- .arsenal/design/DESIGN_SYSTEM.md (full, but cite by § only)
+- .arsenal/design/DESIGN.md (read-only reference)
+- .arsenal/design/mockups/[file] → region [line range OR element selector OR image region label] if present, else flag as missing
+- .arsenal/features/[feature].md (single feature, full)
+- The matching context brief at .arsenal/tasks/phase-N/task-N-context.md (read for task scope context only — do not duplicate it in your output)
 
 Do NOT read other tasks' briefs. Do NOT read full ARCHITECTURE.md (the context brief carries the relevant excerpts).
 
@@ -54,14 +54,14 @@ Do NOT read other tasks' briefs. Do NOT read full ARCHITECTURE.md (the context b
 # Task N — [Task Title] — Design Brief
 
 ## Mockup source
-- File: docs/mockups/[file]
+- File: .arsenal/design/mockups/[file]
 - Region: [lines N-N | selector `.hero` | image region "top hero"]
 - Component(s) shown: [exported function names if JSX/TSX, or selector hierarchy if HTML]
 - Translation target: [app/page.tsx | components/Hero.tsx | etc.]
 
 (If mockup is missing for this surface:)
 ## Mockup source
-- MISSING — surface not mocked in docs/mockups/. Falling back to shape interview.
+- MISSING — surface not mocked in .arsenal/design/mockups/. Falling back to shape interview.
 
 ## Token mapping (mockup value → DESIGN_SYSTEM)
 | Mockup value | Token / class | DESIGN_SYSTEM § |
@@ -141,7 +141,7 @@ Otherwise, three lists:
 4. **Cite primitives, don't describe them.** "Button § 3.2" is enough. The implementer reads § 3.2.
 5. **Variant coverage is your highest-value contribution when it applies.** Mockups capture one cell of the project's defined variant space; implementer needs the rest. Make explicit which cells the mockup locks vs which derive from DESIGN_SYSTEM. Skip this section entirely for trivial atoms.
 6. **Net-new is the smallest possible list.** Anything already in the mockup or DESIGN_SYSTEM is locked. Only add to net-new what truly isn't covered.
-7. **Anti-copy is from the feature spec.** Don't invent anti-patterns. Pull from `planning/features/<feature>.md` § Anti-patterns or § Important.
+7. **Anti-copy is from the feature spec.** Don't invent anti-patterns. Pull from `.arsenal/features/<feature>.md` § Anti-patterns or § Important.
 8. **Gap detection is critical.** When the mockup and DESIGN_SYSTEM disagree, flag it. The user resolves. This keeps the two artifacts converging.
 
 ## If the surface has no mockup
@@ -159,14 +159,14 @@ This is the only path that fully describes design choices in the brief itself. W
 
 ## Boundaries
 - Do NOT write code.
-- Do NOT modify any files except `.tasks/phase-N/task-N-design.md`.
+- Do NOT modify any files except `.arsenal/tasks/phase-N/task-N-design.md`.
 - Do NOT read other tasks' briefs.
 - Do NOT propose mockup edits inline — flag gaps and let the user resolve.
 
 ## Report Format
 When done, report to the calling skill (`generate-design-briefs`):
 - **Status:** DONE | NEEDS_CONTEXT | TASK_TOO_BIG | MOCKUP_DS_GAP_BLOCKING | NEEDS_USER_RESOLUTION (cite the unresolved cells)
-- **Output path:** `.tasks/phase-N/task-N-design.md`
+- **Output path:** `.arsenal/tasks/phase-N/task-N-design.md`
 - **Mockup status:** PRESENT | MISSING
 - **Variant coverage:** included | N/A (stateless atom)
 - **Gaps flagged:** [count] — list any blocking gaps that need user resolution before implementation
@@ -175,7 +175,7 @@ When done, report to the calling skill (`generate-design-briefs`):
 
 ## Isolation rules (`generate-design-briefs` enforces)
 
-- Design briefs live only at `.tasks/phase-N/task-N-design.md` — never shared paths.
+- Design briefs live only at `.arsenal/tasks/phase-N/task-N-design.md` — never shared paths.
 - `generate-design-briefs` confirms the file was written but does not read its contents. Downstream `run-task-design` reads it by path.
 - If the subagent reports `MOCKUP_DS_GAP_BLOCKING` or `NEEDS_USER_RESOLUTION`, `generate-design-briefs` surfaces the gap to the user and pauses subsequent task briefs until resolved. The user decides whether to invoke `impeccable:shape <surface>` manually to fill thin design sources; the skill never does this automatically.
 

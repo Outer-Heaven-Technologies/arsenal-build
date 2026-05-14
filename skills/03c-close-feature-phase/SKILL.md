@@ -1,6 +1,6 @@
 ---
 name: close-feature-phase
-description: Closes a completed development phase for web/frontend projects by running six gates in order — final integration test → Playwright test coverage (if configured) → docs update (if scope drifted) → CodeRabbit review (hard gate, runs across the full phase including design-pipeline commits) → trim TASKS.md and archive `.tasks/phase-N/` → push branch and open PR. This is the phase's terminus — it opens the single PR per phase covering both design and feature commits. Does NOT call impeccable (visual audits live at `close-design-phase`, optionally and earlier in the phase). Invoked by `features` at the end of the feature half, or directly to wrap up a phase whose per-task work already landed. Use when the user wants to "wrap up", "close out", "finish", or "ship" a phase.
+description: Closes a completed development phase for web/frontend projects by running six gates in order — final integration test → Playwright test coverage (if configured) → docs update (if scope drifted) → CodeRabbit review (hard gate, runs across the full phase including design-pipeline commits) → trim TASKS.md and archive `.arsenal/tasks/phase-N/` → push branch and open PR. This is the phase's terminus — it opens the single PR per phase covering both design and feature commits. Does NOT call impeccable (visual audits live at `close-design-phase`, optionally and earlier in the phase). Invoked by `features` at the end of the feature half, or directly to wrap up a phase whose per-task work already landed. Use when the user wants to "wrap up", "close out", "finish", or "ship" a phase.
 ---
 
 # Close Feature Phase — Web
@@ -13,18 +13,19 @@ This skill is normally invoked by `features` after every feature-domain task in 
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## Where this fits in the phase pipeline
 
@@ -43,8 +44,8 @@ Visual audit (impeccable, claude-in-chrome, etc.) lives at `close-design-phase` 
 
 | File / state | Used for |
 |---|---|
-| `docs/TASKS.md` | Phase block with the `## Phase N` heading, metadata, `### Design tasks` (all `[x]`), `### Feature tasks` (all `[x]`) (Gate 5 extracts the full phase block) |
-| `.tasks/phase-N/` | Working dir from this phase — context briefs, design briefs, research files (Gate 5 archives) |
+| `.arsenal/TASKS.md` | Phase block with the `## Phase N` heading, metadata, `### Design tasks` (all `[x]`), `### Feature tasks` (all `[x]`) (Gate 5 extracts the full phase block) |
+| `.arsenal/tasks/phase-N/` | Working dir from this phase — context briefs, design briefs, research files (Gate 5 archives) |
 | Phase branch checked out (`phase-N/short-description`) | Every gate runs against this branch's HEAD |
 | `coderabbit` plugin (Gate 4 hard gate) | Prompts to install or waive if absent (do not silently skip) |
 
@@ -52,8 +53,8 @@ Visual audit (impeccable, claude-in-chrome, etc.) lives at `close-design-phase` 
 
 When invoked directly (not from `features`), the caller passes the phase number (e.g., `N=1`). All other state is read from disk:
 
-- `docs/TASKS.md` (read at Gate 5 to extract the full phase block — design + feature tasks)
-- `.tasks/phase-N/` contents (read at Gate 5 to archive)
+- `.arsenal/TASKS.md` (read at Gate 5 to extract the full phase block — design + feature tasks)
+- `.arsenal/tasks/phase-N/` contents (read at Gate 5 to archive)
 - Phase branch must already be checked out
 
 ## The six gates
@@ -103,7 +104,7 @@ git log --grep='Spec amended:' --format='%H%n%s%n%b%n---END---' phase-N/start..H
 ```
 
 If any amendments are found:
-- Write a consolidated summary to `.tasks/phase-N/spec-amendments.md`. One entry per amendment:
+- Write a consolidated summary to `.arsenal/tasks/phase-N/spec-amendments.md`. One entry per amendment:
   ```markdown
   ## <feature-slug>
 
@@ -141,13 +142,13 @@ The user triages:
 
 **Do not advance to Gate 5 until CodeRabbit is clean** — every finding either fixed or explicitly dismissed with reasoning logged for the PR body.
 
-### Gate 5 of 6 — Trim `TASKS.md` + archive `.tasks/phase-N/`
+### Gate 5 of 6 — Trim `TASKS.md` + archive `.arsenal/tasks/phase-N/`
 
 Cleanup runs **before** push + PR, deliberately, so the PR body in Gate 6 can reference the trimmed `TASKS.md` and the archive path directly.
 
 **Step A — Trim TASKS.md:**
 
-Extract the entire phase block from TASKS.md (the `## Phase N` heading, all metadata, `### Design tasks` subsection, `### Feature tasks` subsection, all `[x]` task lines beneath them) and write it to `.tasks/phase-N/tasks.md` for archival. Then replace the phase block in TASKS.md with a trimmed completion stub:
+Extract the entire phase block from TASKS.md (the `## Phase N` heading, all metadata, `### Design tasks` subsection, `### Feature tasks` subsection, all `[x]` task lines beneath them) and write it to `.arsenal/tasks/phase-N/tasks.md` for archival. Then replace the phase block in TASKS.md with a trimmed completion stub:
 
 ```markdown
 ## Phase 1: Core Loop (Landing + Onboarding) ✅
@@ -156,7 +157,7 @@ Extract the entire phase block from TASKS.md (the `## Phase N` heading, all meta
 **UX pages covered:** Landing, Onboarding
 **FEATURES capabilities covered:** Email Capture, Stripe Payments
 **Goal:** Prove the activation event works end-to-end.
-**Archived tasks:** `.tasks/archive/phase-1/tasks.md`
+**Archived tasks:** `.arsenal/tasks/archive/phase-1/tasks.md`
 **PR:** #TBD
 ```
 
@@ -166,18 +167,18 @@ The stub keeps the same shape as the original placeholder scaffold (header + met
 
 **If any tasks are still unchecked** (rare — usually only if the user explicitly deferred), do not auto-trim those. Leave them in place as a `### Deferred` subsection under the completion stub, or move them to a future phase. Ask the user before discarding any unchecked task.
 
-**Step B — Cleanup `.tasks/phase-N/`:**
+**Step B — Cleanup `.arsenal/tasks/phase-N/`:**
 
 Prompt the user:
 
-> "Phase N has passed all review gates and TASKS.md has been trimmed. The working files in `.tasks/phase-N/` (context briefs, design briefs, research files, archived task list) are no longer needed for active work. Choose:
-> - **Archive** (default) — move to `.tasks/archive/phase-N/`
+> "Phase N has passed all review gates and TASKS.md has been trimmed. The working files in `.arsenal/tasks/phase-N/` (context briefs, design briefs, research files, archived task list) are no longer needed for active work. Choose:
+> - **Archive** (default) — move to `.arsenal/tasks/archive/phase-N/`
 > - **Delete** — remove entirely
 > - **Keep** — leave in place"
 
 Default to archive. Run the chosen action:
-- Archive: `mkdir -p .tasks/archive && mv .tasks/phase-N .tasks/archive/phase-N`
-- Delete: `rm -rf .tasks/phase-N`
+- Archive: `mkdir -p .arsenal/tasks/archive && mv .arsenal/tasks/phase-N .arsenal/tasks/archive/phase-N`
+- Delete: `rm -rf .arsenal/tasks/phase-N`
 - Keep: no-op
 
 ### Gate 6 of 6 — Push + open PR (terminus)
@@ -185,13 +186,19 @@ Default to archive. Run the chosen action:
 - Push the phase branch to remote: `git push -u origin phase-N/short-description`
 - Create a pull request (via GitHub MCP if available):
   - Title: `Phase N: [phase description]`
-  - Body: auto-generated summary of tasks completed (design + feature), files changed, deferred concerns, CodeRabbit dismissal reasoning (or waiver from Gate 4), and the archive pointer (`Phase tasks archived to .tasks/archive/phase-N/tasks.md`). Include the design-pipeline summary if `close-design-phase` recorded one (`.tasks/phase-N/design-summary.md`). Include the spec-amendment summary if Gate 3 wrote one (`.tasks/phase-N/spec-amendments.md`) — surface it as a `## Spec amendments` section so PR reviewers see at a glance what FEATURES.md was wrong about and how the build patched it.
+  - Body: auto-generated summary of tasks completed (design + feature), files changed, deferred concerns, CodeRabbit dismissal reasoning (or waiver from Gate 4), and the archive pointer (`Phase tasks archived to .arsenal/tasks/archive/phase-N/tasks.md`). Include the design-pipeline summary if `close-design-phase` recorded one (`.arsenal/tasks/phase-N/design-summary.md`). Include the spec-amendment summary if Gate 3 wrote one (`.arsenal/tasks/phase-N/spec-amendments.md`) — surface it as a `## Spec amendments` section so PR reviewers see at a glance what FEATURES.md was wrong about and how the build patched it.
   - Base branch: main (or the user's default)
 - If GitHub tools aren't available, tell the user: "Phase branch pushed. Ready to create a PR manually."
 - Once the PR number is returned, update the `**PR:** #TBD` placeholder in `TASKS.md` (set during Gate 5), commit as `chore(phase-N): record PR number in TASKS.md`, and push.
+- **Final action: revert phase-scoped permissions in `.claude/settings.json`.** Read the current settings, strip out the per-phase entries that `expand-phase` added at Step 0:
+  - **Remove** any `Read(.arsenal/features/<slug>.md)` entries (per-feature out-of-scope denies for this phase). In split mode, this returns features to the "all denied by broad rule" state. In single mode, no-op.
+  - **Remove** any `Read(.arsenal/tasks/phase-X/**)` entries (per-phase other-phase denies).
+  - **Add back the broad baseline denies:** `Read(.arsenal/features/**)` and `Read(.arsenal/tasks/**)`. The strategy deny (`Read(.arsenal/strategy/**)`) stays in place — it's never touched at phase close.
+  - **Preserve any non-arsenal entries** in the deny/allow lists — arsenal owns only entries with `.arsenal/` path prefix.
+  - Result is the "between phases" baseline: strategy + features + tasks all broadly denied, ready for the next `expand-phase` invocation to narrow.
 - **Do not start the next phase until the current phase's PR is merged.**
 
-**This gate is the terminus.** Once the PR URL is generated and the PR-number commit is pushed, the phase wrap is complete.
+**This gate is the terminus.** Once the PR URL is generated, the PR-number commit is pushed, and the permission revert has landed, the phase wrap is complete.
 
 **Final report to user (after Gate 6):**
 - Summary of what was built (design + feature)
@@ -215,8 +222,8 @@ Default to archive. Run the chosen action:
 
 | Skill | Relationship |
 |---|---|
-| `/arsenal-build:features` | Invokes this skill at the end of the feature half. Hand-off point: all feature-task commits landed, branch checked out, `.tasks/phase-N/` populated. |
-| `/arsenal-build:close-design-phase` | Runs **before** this skill (earlier in the phase). May leave an annotation at `.tasks/phase-N/design-summary.md` that this skill picks up for the PR body. |
+| `/arsenal-build:features` | Invokes this skill at the end of the feature half. Hand-off point: all feature-task commits landed, branch checked out, `.arsenal/tasks/phase-N/` populated. |
+| `/arsenal-build:close-design-phase` | Runs **before** this skill (earlier in the phase). May leave an annotation at `.arsenal/tasks/phase-N/design-summary.md` that this skill picks up for the PR body. |
 | `/arsenal-build:run-task-feature` / `/arsenal-build:run-task-design` | Per-task pipelines that ran during the phase. CodeRabbit fix dispatches at Gate 4 may reuse one of these to apply fixes. |
 | `/coderabbit:review` | Gate 4 dispatch. Hard gate; prompts install/waive if absent. |
 | `impeccable` | **Not invoked from this skill, ever.** Visual audits live at `close-design-phase`. |

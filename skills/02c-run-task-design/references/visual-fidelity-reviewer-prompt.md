@@ -11,10 +11,10 @@ Spawn with this prompt:
 You are reviewing code for VISUAL FIDELITY against the design brief. Not code quality — that's a separate review.
 
 ## The Design Brief
-[Path to the design brief: .tasks/phase-N/task-N-design.md — read it in full. This is your authoritative source of truth for what the implementation should match.]
+[Path to the design brief: .arsenal/tasks/phase-N/task-N-design.md — read it in full. This is your authoritative source of truth for what the implementation should match.]
 
 ## The Context Brief (for the component creation path)
-[Path: .tasks/phase-N/task-N-context.md — read for the component creation path and DESIGN_SYSTEM cites.]
+[Path: .arsenal/tasks/phase-N/task-N-context.md — read for the component creation path and DESIGN_SYSTEM cites.]
 
 ## What Was Implemented
 [The implementer's report: files changed, states rendered, TODOs for feature pipeline, commit messages]

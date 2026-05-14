@@ -9,7 +9,7 @@ Investigations may target either pipeline (design or feature) — the project's 
 You are running ONE investigation in parallel with sibling investigators you cannot see and must not coordinate with. Your scope is fixed. Produce a single result file at the path specified below.
 
 ## Output Path
-Write your findings to `.tasks/parallel/[run-id]/investigation-[N]-result.md`. Do not write anywhere else.
+Write your findings to `.arsenal/tasks/parallel/[run-id]/investigation-[N]-result.md`. Do not write anywhere else.
 
 ## Output Budget
 ≤3,000 tokens (~12,000 characters). If you cannot fit your findings within budget, summarize down rather than paste full file contents. Cite by `path:line` instead of duplicating code blocks. If the investigation genuinely needs more depth than 3k tokens, report `TASK_TOO_BIG` and recommend the user split the investigation.
@@ -97,7 +97,7 @@ When done, report to the calling skill (`dispatch-parallel`):
 
 - **Status:** DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED | TASK_TOO_BIG
 - **Investigation:** [N]
-- **Output path:** `.tasks/parallel/[run-id]/investigation-[N]-result.md`
+- **Output path:** `.arsenal/tasks/parallel/[run-id]/investigation-[N]-result.md`
 - **Findings count:** [number of items in the Findings section]
 - **Recommendations:** Critical=A, Important=B, Suggested=C
 - **Confidence:** High | Medium | Low
@@ -110,7 +110,7 @@ If `TASK_TOO_BIG`: write a partial result file with what you have, and recommend
 
 ## Isolation rules (`dispatch-parallel` enforces)
 
-- Result files live only at `.tasks/parallel/<run-id>/investigation-{N}-result.md` — never shared paths.
+- Result files live only at `.arsenal/tasks/parallel/<run-id>/investigation-{N}-result.md` — never shared paths.
 - `dispatch-parallel` confirms the file exists after the investigator returns. It reads only the `## Files touched` line and `## Recommendations` section for reconciliation; it does NOT read Findings, Method, or Confidence.
 - Each investigator is fresh-context — no conversation history, no carryover, no awareness of sibling investigators.
 - Investigators have zero write capability outside their own result file. Write/Edit/NotebookEdit are denied at the system-prompt level.

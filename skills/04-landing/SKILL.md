@@ -9,18 +9,19 @@ Build landing pages that convert, grounded in research about the specific projec
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## Philosophy
 
@@ -31,15 +32,28 @@ Tracked artifacts use these default locations (override via `.arsenal/config.yam
 
 ## Workflow
 
+### Step 0: Lift strategy lockdown (temporarily)
+
+`landing` legitimately reads `MVP_SPEC.md` and `MARKET_RESEARCH.md` from `.arsenal/strategy/`, but during build phases that directory is denied by `.claude/settings.json` (set up by `expand-phase` on first execution-phase entry). Before doing research, lift the strategy deny:
+
+1. Read `.claude/settings.json`. If `permissions.deny` contains `Read(.arsenal/strategy/**)`, **remove that entry temporarily**.
+2. Preserve any non-arsenal entries the user added.
+3. Write back.
+4. Surface to user: *"Lifting `.arsenal/strategy/` lockdown for landing-page research. Will restore at the end."*
+
+After all landing-page work is done (Step 5 review complete), **restore the strategy deny** by re-adding `Read(.arsenal/strategy/**)` to `permissions.deny` and writing settings back. Tell the user: *"Strategy lockdown restored. Build state preserved."*
+
+If `.claude/settings.json` doesn't exist or doesn't have a strategy deny, this is a pre-execution-phase invocation (planning hasn't transitioned to build yet) — proceed without any mutation. The strategy directory is freely readable in that state.
+
 ### Step 1: Research Phase
 
 Before building anything, gather context. This research shapes every decision about copy, structure, and design.
 
 **If project planning docs exist (from mvp / anchor-files):**
-- Read `planning/MVP_SPEC.md` for the core value proposition, target user, and distribution hypothesis
-- Read `planning/MARKET_RESEARCH.md` (unified executive dossier from `market-analysis`) for audience pain points (§2), demand signals (§1.3), competitor positioning (§3), and SWOT (§5)
+- Read `.arsenal/strategy/MVP_SPEC.md` for the core value proposition, target user, and distribution hypothesis
+- Read `.arsenal/strategy/MARKET_RESEARCH.md` (unified executive dossier from `market-analysis`) for audience pain points (§2), demand signals (§1.3), competitor positioning (§3), and SWOT (§5)
 - The `MARKET_RESEARCH.md` above is the unified executive dossier from `mvp` — it contains the competitive analysis in §3 (Industry Structure & Competition), so competitor positioning + per-competitor breakdowns + feature/pricing matrices + the positioning map are all there
-- Read `docs/DESIGN_SYSTEM.md` if it exists for brand/visual direction
+- Read `.arsenal/design/DESIGN_SYSTEM.md` if it exists for brand/visual direction
 
 **If no planning docs exist, ask the user:**
 - What does this product do in one sentence?

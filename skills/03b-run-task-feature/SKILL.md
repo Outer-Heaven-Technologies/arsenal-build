@@ -18,18 +18,19 @@ The pipeline runs **sequentially per task** — never dispatch two feature-imple
 
 ## Paths
 
-Tracked artifacts use these default locations (override via `.arsenal/config.yaml` at the project root):
+All arsenal artifacts live under `.arsenal/` at the project root.
 
-| Variable | Default | Holds |
+| What | Path | Notes |
 |---|---|---|
-| `paths.planning` | `planning/` | MARKET_RESEARCH.md, MVP_SPEC.md, FEATURES.md (or features/*.md), GTM_STRATEGY.md, REVENUE_MODEL.md, RESEARCH_PLAN.md |
-| `paths.docs` | `docs/` | UX.md, DESIGN.md, DESIGN_SYSTEM.md, ARCHITECTURE.md, CONVENTIONS.md, TASKS.md |
-| `paths.mockups` | `docs/mockups/` | Mockup files (PNG, HTML, TSX, Figma exports) |
-| `paths.mockup_briefs` | `planning/mockup-briefs/` | Mockup briefs |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
+| Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
+| Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
+| Per-task briefs + ephemera | `.arsenal/tasks/phase-N/`, `.arsenal/tasks/parallel/`, `.arsenal/tasks/archive/` | Gitignored; phase-N gated per active phase |
 
-**Preflight (every run):** before reading or writing a tracked artifact, check for `.arsenal/config.yaml` at the project root. If present, parse `paths.*` and use those values; otherwise use defaults silently — do not prompt the user just to confirm defaults. File names (e.g. `MVP_SPEC.md`) are not configurable; only their wrapping directory is.
+**Configuration:** `.arsenal/config.yaml` may override the root location, but defaults work for nearly all projects. File names are not configurable.
 
-**Consuming an artifact from another skill:** if config (or defaults) point to a location where the expected artifact is missing, ask the user where to find it instead of failing.
+**Gating:** `expand-phase` writes baseline denies and per-phase allow rules to `.claude/settings.json`. `close-feature-phase` reverts at phase end. Strategy stays fully denied throughout build.
 
 ## The component boundary — load-bearing rule
 
@@ -51,9 +52,9 @@ This sub-skill assumes its upstream contracts are satisfied:
 
 | Upstream artifact | Source | Used for |
 |---|---|---|
-| `docs/TASKS.md` with phase block in concrete-tasks state | `expand-phase` upstream | Read the task line and tags (`domain: feature`, `research:`); flip `[ ]` → `[x]` after success |
-| `.tasks/phase-{N}/task-{N}-context.md` | `generate-feature-briefs` upstream | Feature-implementer reads it by path; carries available-components manifest |
-| `docs/CONVENTIONS.md`, `docs/ARCHITECTURE.md`, `docs/DESIGN_SYSTEM.md` | `anchor-files` upstream | Excerpted into the context brief upstream — this skill does not re-read them |
+| `.arsenal/TASKS.md` with phase block in concrete-tasks state | `expand-phase` upstream | Read the task line and tags (`domain: feature`, `research:`); flip `[ ]` → `[x]` after success |
+| `.arsenal/tasks/phase-{N}/task-{N}-context.md` | `generate-feature-briefs` upstream | Feature-implementer reads it by path; carries available-components manifest |
+| `.arsenal/CONVENTIONS.md`, `.arsenal/ARCHITECTURE.md`, `.arsenal/design/DESIGN_SYSTEM.md` | `anchor-files` upstream | Excerpted into the context brief upstream — this skill does not re-read them |
 | Phase branch checked out (`phase-N/short-description`) | Orchestrator Step 1 | All commits land on this branch; design-pipeline commits are already present |
 | Design-pipeline commits already on the phase branch | `close-design-phase` upstream | The components this task may wire to are reachable in git history; the context brief's available-components manifest enumerates them |
 
@@ -69,13 +70,13 @@ Caller passes:
 - `--task <N>` — task identifier within the phase (required)
 - `--force` — optional. Re-run the full pipeline even when the task is already `[x]` in `TASKS.md`. Without `--force`, this skill is idempotent per the M1 contract: `[x]` tasks no-op pass-through.
 
-The task's tags (`domain:`, `research:`) are re-read from `docs/TASKS.md` directly so direct invocation works without orchestrator state. If the task's `domain:` is not `feature`, report `WRONG_DOMAIN` and stop — that task belongs to `run-task-design`.
+The task's tags (`domain:`, `research:`) are re-read from `.arsenal/TASKS.md` directly so direct invocation works without orchestrator state. If the task's `domain:` is not `feature`, report `WRONG_DOMAIN` and stop — that task belongs to `run-task-design`.
 
 ## Workflow
 
 ### Step 1: Validate inputs and check idempotence
 
-Read `docs/TASKS.md` for phase `<N>`. Locate the `### Feature tasks` subsection. Confirm task `<N>` exists in the subsection.
+Read `.arsenal/TASKS.md` for phase `<N>`. Locate the `### Feature tasks` subsection. Confirm task `<N>` exists in the subsection.
 
 - If the task is not in the `### Feature tasks` subsection (it lives under `### Design tasks` or isn't present at all): report `WRONG_DOMAIN` or `NEEDS_CONTEXT` accordingly.
 - If the task is `[x]` and `--force` is NOT set: report `SKIPPED — task already complete`. No-op.
@@ -84,7 +85,7 @@ Read `docs/TASKS.md` for phase `<N>`. Locate the `### Feature tasks` subsection.
 
 Parse the task's tags (`domain: feature`, `research: yes/no`). Confirm the context brief exists:
 
-- `.tasks/phase-{N}/task-{N}-context.md` — required, always
+- `.arsenal/tasks/phase-{N}/task-{N}-context.md` — required, always
 
 If the brief is missing, report `NEEDS_CONTEXT` and tell the caller to run `/arsenal-build:generate-feature-briefs --phase N --task N` first.
 
@@ -94,11 +95,11 @@ Ask the user: "Task N is flagged for research (reason: [Stripe webhook semantics
 
 If yes, spawn a fresh-context researcher subagent using the prompt template at `references/researcher-prompt.md`. Substitute the bracketed placeholders for this task's specifics.
 
-The researcher writes `.tasks/phase-{N}/task-{N}-research.md` and terminates. **This skill does not read the contents of this file** — it only confirms the file was written. The feature-implementer subagent reads it via the brief reference.
+The researcher writes `.arsenal/tasks/phase-{N}/task-{N}-research.md` and terminates. **This skill does not read the contents of this file** — it only confirms the file was written. The feature-implementer subagent reads it via the brief reference.
 
 **Research isolation rules (enforce strictly):**
 
-- Research files live only at `.tasks/phase-{N}/task-{N}-research.md` — never shared paths.
+- Research files live only at `.arsenal/tasks/phase-{N}/task-{N}-research.md` — never shared paths.
 - Subagents read only their own task's research file, by exact path (no globs, no "read everything in the phase directory").
 - This skill doesn't accumulate research file contents in its own context.
 - Research is per-task, not cached across tasks.
@@ -188,9 +189,9 @@ Each template has bracketed placeholders. Substitute every one before dispatch �
 ## Anti-patterns — never do these
 
 - **Don't let subagents inherit this skill's session context.** Subagents get their own system prompt plus basic environment details — that's it. Construct their prompts with exactly what they need.
-- **Don't paste entire docs into subagent prompts.** Briefs at `.tasks/phase-{N}/task-{N}-*.md` were generated upstream by `generate-feature-briefs`. Reference them by path.
-- **Don't read full canonical docs in subagent prompts.** Subagents read their per-task brief and (if applicable) their per-task research file. They never read FEATURES.md / `planning/features/`, UX.md, or full ARCHITECTURE.md/CONVENTIONS.md/DESIGN_SYSTEM.md directly.
-- **Don't share research files across tasks.** Each task gets its own `.tasks/phase-{N}/task-{N}-research.md`.
+- **Don't paste entire docs into subagent prompts.** Briefs at `.arsenal/tasks/phase-{N}/task-{N}-*.md` were generated upstream by `generate-feature-briefs`. Reference them by path.
+- **Don't read full canonical docs in subagent prompts.** Subagents read their per-task brief and (if applicable) their per-task research file. They never read FEATURES.md / `.arsenal/features/`, UX.md, or full ARCHITECTURE.md/CONVENTIONS.md/DESIGN_SYSTEM.md directly.
+- **Don't share research files across tasks.** Each task gets its own `.arsenal/tasks/phase-{N}/task-{N}-research.md`.
 - **Don't accumulate research file contents in this skill's context.** When a researcher subagent writes a file, this skill confirms the file was written but does not read its contents.
 - **Don't skip either review stage.** Spec compliance catches "well-written but wrong" and missing `Component extended:` notes. Quality catches "correct but sloppy." Both matter.
 - **Don't dispatch multiple feature-implementers in parallel.** They'll create merge conflicts. This sub-skill always runs one task at a time.

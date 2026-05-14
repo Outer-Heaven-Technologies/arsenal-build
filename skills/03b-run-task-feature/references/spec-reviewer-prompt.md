@@ -23,12 +23,12 @@ The feature pipeline wires existing components to real data. It does not do desi
 
 ## The Spec-Amendment Rule (load-bearing rule — enforce strictly)
 
-The feature spec at `planning/FEATURES.md` (single mode) or `planning/features/<slug>.md` (split mode) constrains every implementation. The implementer has two legitimate paths when build reveals reality the spec missed:
+The feature spec at `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` (split mode) constrains every implementation. The implementer has two legitimate paths when build reveals reality the spec missed:
 
 - **Tier 1 (allowed in-line)**: additive or clarifying amendments — a missed State, an alt-path in User Flow, an AC threshold tightened/relaxed within the same intent, a missing dependency, a Data lifecycle clarification. Spec file edited, committed alongside the code, `Spec amended:` note in the commit body.
 - **Tier 2 (must BLOCK)**: intent changes — user-facing behavior should differ, data model needs an incompatible change, an Important counter-intuitive boundary is wrong, an AC's testable outcome should differ. Implementer must report `BLOCKED` with `reason: spec change required — <feature>: <why>` and commit no code.
 
-**Every commit that modifies `planning/FEATURES.md` or `planning/features/*.md` MUST include a `Spec amended: <feature-slug> — <one-line why>` note in the commit body.** A Tier 2 change disguised as a Tier 1 amendment (intent shift slipped through as in-line edit) is a CRITICAL failure.
+**Every commit that modifies `.arsenal/FEATURES.md` or `.arsenal/features/*.md` MUST include a `Spec amended: <feature-slug> — <one-line why>` note in the commit body.** A Tier 2 change disguised as a Tier 1 amendment (intent shift slipped through as in-line edit) is a CRITICAL failure.
 
 ## Your Job
 Read the ACTUAL CODE that was written (not just the implementer's report — they may be optimistic). Check five things:
@@ -40,8 +40,8 @@ Read the ACTUAL CODE that was written (not just the implementer's report — the
    - Does the commit message include a `Component extended:` note? (Run `git log --format=%B <phase-base>..HEAD -- '<component-root>/**'` to read messages.)
    - Is the change actually an extension (new prop / variant / state) and not a redesign (visual treatment / spacing / typography / color)?
    - If the change is a redesign disguised as an extension, that's a CRITICAL spec failure — flag it and recommend reverting the visual portion + redirecting to the design pipeline.
-5. **Spec-amendment compliance**: For every commit that modifies `planning/FEATURES.md` or any `planning/features/*.md`:
-   - Does the commit message include a `Spec amended: <feature-slug> — <one-line why>` note? (Run `git log --format=%B <phase-base>..HEAD -- 'planning/FEATURES.md' 'planning/features/**'` to read messages.)
+5. **Spec-amendment compliance**: For every commit that modifies `.arsenal/FEATURES.md` or any `.arsenal/features/*.md`:
+   - Does the commit message include a `Spec amended: <feature-slug> — <one-line why>` note? (Run `git log --format=%B <phase-base>..HEAD -- '.arsenal/FEATURES.md' '.arsenal/features/**'` to read messages.)
    - Read the diff of the spec edit. Is the change actually additive or clarifying (Tier 1) — e.g., a new State, new alt-path, threshold tightening within the same intent, missing dependency, lifecycle clarification?
    - Or does it change the feature's user-facing intent (Tier 2 disguised as Tier 1)? Signs of disguised Tier 2: an AC's testable outcome is rewritten, an Important boundary is inverted, a User Flow happy-path step is rewritten to describe different behavior, a Data entity's identity or relationship changes.
    - A Tier 2 change committed in-line without going through `features` is a CRITICAL spec failure — flag it, recommend reverting the spec edit and the dependent code, and re-routing through `/arsenal-planning:features` for a fresh drill.

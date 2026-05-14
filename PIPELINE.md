@@ -7,11 +7,11 @@ For native iOS projects, see [arsenal-build-io](https://github.com/Outer-Heaven-
 ## Linear flow
 
 ```
-   planning/{FEATURES,MVP_SPEC,MARKET_RESEARCH}.md  +  docs/{UX,DESIGN}.md  +  docs/mockups/
+   .arsenal/FEATURES.md  +  .arsenal/strategy/{MVP_SPEC,MARKET_RESEARCH}.md  +  .arsenal/design/{UX,DESIGN}.md  +  .arsenal/design/mockups/
             (typically produced by arsenal-planning)
                               │
                               ▼
-                       anchor-files  ──►  CLAUDE.md + docs/{ARCHITECTURE,CONVENTIONS,DESIGN_SYSTEM,TASKS}.md
+                       anchor-files  ──►  CLAUDE.md + .arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md + .arsenal/design/DESIGN_SYSTEM.md
                               │
                               ▼
    ┌─────── per-phase ─────────────────────────────────────────────────────────┐
@@ -69,18 +69,18 @@ Which file each skill **reads** (`R`) and **writes** (`W`):
 
 | Skill | Reads | Writes |
 |---|---|---|
-| `anchor-files` | `FEATURES.md` / `features/`*, `docs/UX.md`* (UI only), `docs/DESIGN.md`* (UI only), `MVP_SPEC.md` (optional context); soft prompts for `docs/mockups/` on UI projects | `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/CONVENTIONS.md`, `docs/DESIGN_SYSTEM.md` (UI only), `docs/TASKS.md` |
-| `design` | `TASKS.md`*, `UX.md`, feature specs, `DESIGN_SYSTEM.md`, `DESIGN.md`, mockups (optional); args: `--phase`, `--scope` | dispatches `expand-phase`, `generate-design-briefs`, `run-task-design` per design task, then `close-design-phase` |
-| `features` | `TASKS.md`*, `ARCHITECTURE.md`*, `CONVENTIONS.md`*, `DESIGN_SYSTEM.md`, feature specs, phase branch with design-pipeline commits already present; args: `--phase`, `--scope` | dispatches `generate-feature-briefs`, `run-task-feature` per feature task, then `close-feature-phase` |
-| `expand-phase` (shared) | `TASKS.md`*, `UX.md`, feature specs, `ARCHITECTURE.md` skim, `CONVENTIONS.md` skim; args: `--phase`, `--scope`, `--force` | `TASKS.md` phase block rewritten with concrete tagged tasks grouped under `### Design tasks` and `### Feature tasks`; tags include `domain:` / `research:` |
-| `generate-design-briefs` | `TASKS.md`* (re-read for tags), per-task UX / feature spec (design parts) / DESIGN_SYSTEM cites / mockups; args: `--phase`, `--task`, `--force` | `.tasks/phase-N/task-N-context.md` + `.tasks/phase-N/task-N-design.md` per `domain: design` task (≤3k / ≤1.7k tokens) |
-| `generate-feature-briefs` | `TASKS.md`* (re-read for tags), per-task feature spec / ARCHITECTURE / CONVENTIONS cites, design-pipeline-committed component paths via `git log`; args: `--phase`, `--task`, `--force` | `.tasks/phase-N/task-N-context.md` per `domain: feature` task (≤3k tokens), with `## Available components` manifest of design-pipeline commits |
-| `run-task-design` | per-task briefs at `.tasks/phase-N/task-N-{context,design,research}.md`*, mockup files; args: `--phase`, `--task`, `--force` | code commits (semantic, hardcoded data), `[x]` flip in `TASKS.md` under `### Design tasks`, optional research file |
-| `run-task-feature` | per-task brief at `.tasks/phase-N/task-N-context.md`*, available-components manifest from the brief; args: `--phase`, `--task`, `--force` | code commits (semantic, with `Component extended:` notes when touching component files), `[x]` flip in `TASKS.md` under `### Feature tasks` |
-| `close-design-phase` | aggregated design briefs in `.tasks/phase-N/`, phase branch, `impeccable` (optional, gateable at Gate 1) | `.tasks/phase-N/design-summary.md` for the PR body; optional audit-fix commits; **does NOT push or PR** |
-| `close-feature-phase` | `TASKS.md`, full phase block, `.tasks/phase-N/` (including `design-summary.md`), phase branch | fix commits, trimmed `TASKS.md`, archived `.tasks/phase-N/`, pushed branch + single PR for the phase |
-| `landing` (standalone) | `MVP_SPEC.md`, `MARKET_RESEARCH.md` (unified — contains competitive analysis in §3), `DESIGN_SYSTEM.md` | landing page repo or route |
-| `dispatch-parallel` (utility, off-pipeline) | 2–5 investigation descriptions (CLI args or `--from-file`); args: `--investigation`, `--from-file`, `--force`, `--max` | `.tasks/parallel/<run-id>/investigation-N-result.md` per investigation (≤3k tokens), `SUMMARY.md` (aggregated, with file-overlap detection and severity-tagged recommendations) |
+| `anchor-files` | `.arsenal/FEATURES.md` / `.arsenal/features/`*, `.arsenal/design/UX.md`* (UI only), `.arsenal/design/DESIGN.md`* (UI only), `.arsenal/strategy/MVP_SPEC.md` (optional context); soft prompts for `.arsenal/design/mockups/` on UI projects | `CLAUDE.md`, `.arsenal/ARCHITECTURE.md`, `.arsenal/CONVENTIONS.md`, `.arsenal/design/DESIGN_SYSTEM.md` (UI only), `.arsenal/TASKS.md` |
+| `design` | `.arsenal/TASKS.md`*, `.arsenal/design/UX.md`, feature specs, `.arsenal/design/DESIGN_SYSTEM.md`, `.arsenal/design/DESIGN.md`, mockups (optional); args: `--phase`, `--scope` | dispatches `expand-phase`, `generate-design-briefs`, `run-task-design` per design task, then `close-design-phase` |
+| `features` | `.arsenal/TASKS.md`*, `.arsenal/ARCHITECTURE.md`*, `.arsenal/CONVENTIONS.md`*, `.arsenal/design/DESIGN_SYSTEM.md`, feature specs, phase branch with design-pipeline commits already present; args: `--phase`, `--scope` | dispatches `generate-feature-briefs`, `run-task-feature` per feature task, then `close-feature-phase` |
+| `expand-phase` (shared) | `.arsenal/TASKS.md`*, `.arsenal/design/UX.md`, feature specs, `.arsenal/ARCHITECTURE.md` skim, `.arsenal/CONVENTIONS.md` skim; args: `--phase`, `--scope`, `--force` | `.arsenal/TASKS.md` phase block rewritten with concrete tagged tasks grouped under `### Design tasks` and `### Feature tasks`; tags include `domain:` / `research:` |
+| `generate-design-briefs` | `.arsenal/TASKS.md`* (re-read for tags), per-task UX / feature spec (design parts) / DESIGN_SYSTEM cites / mockups; args: `--phase`, `--task`, `--force` | `.arsenal/tasks/phase-N/task-N-context.md` + `.arsenal/tasks/phase-N/task-N-design.md` per `domain: design` task (≤3k / ≤1.7k tokens) |
+| `generate-feature-briefs` | `.arsenal/TASKS.md`* (re-read for tags), per-task feature spec / ARCHITECTURE / CONVENTIONS cites, design-pipeline-committed component paths via `git log`; args: `--phase`, `--task`, `--force` | `.arsenal/tasks/phase-N/task-N-context.md` per `domain: feature` task (≤3k tokens), with `## Available components` manifest of design-pipeline commits |
+| `run-task-design` | per-task briefs at `.arsenal/tasks/phase-N/task-N-{context,design,research}.md`*, mockup files; args: `--phase`, `--task`, `--force` | code commits (semantic, hardcoded data), `[x]` flip in `.arsenal/TASKS.md` under `### Design tasks`, optional research file |
+| `run-task-feature` | per-task brief at `.arsenal/tasks/phase-N/task-N-context.md`*, available-components manifest from the brief; args: `--phase`, `--task`, `--force` | code commits (semantic, with `Component extended:` notes when touching component files), `[x]` flip in `.arsenal/TASKS.md` under `### Feature tasks` |
+| `close-design-phase` | aggregated design briefs in `.arsenal/tasks/phase-N/`, phase branch, `impeccable` (optional, gateable at Gate 1) | `.arsenal/tasks/phase-N/design-summary.md` for the PR body; optional audit-fix commits; **does NOT push or PR** |
+| `close-feature-phase` | `.arsenal/TASKS.md`, full phase block, `.arsenal/tasks/phase-N/` (including `design-summary.md`), phase branch | fix commits, trimmed `.arsenal/TASKS.md`, archived `.arsenal/tasks/phase-N/`, pushed branch + single PR for the phase |
+| `landing` (standalone) | `.arsenal/strategy/MVP_SPEC.md`, `.arsenal/strategy/MARKET_RESEARCH.md` (unified — contains competitive analysis in §3), `.arsenal/design/DESIGN_SYSTEM.md` | landing page repo or route |
+| `dispatch-parallel` (utility, off-pipeline) | 2–5 investigation descriptions (CLI args or `--from-file`); args: `--investigation`, `--from-file`, `--force`, `--max` | `.arsenal/tasks/parallel/<run-id>/investigation-N-result.md` per investigation (≤3k tokens), `SUMMARY.md` (aggregated, with file-overlap detection and severity-tagged recommendations) |
 
 `*` = required. All others soft — skill prompts to run upstream or proceeds with reduced fidelity.
 
@@ -92,14 +92,14 @@ Upstream of `anchor-files`, you need planning artifacts. Most users produce them
 
 | Artifact arsenal-build expects | Where arsenal-planning produces it | If missing |
 |---|---|---|
-| `planning/MVP_SPEC.md` | `arsenal-planning:mvp` | `anchor-files` reads if present; skips if not |
-| `planning/FEATURES.md` or `planning/features/` | `arsenal-planning:features` | `anchor-files` stops; route to `arsenal-planning:features` (or supply path via config / prompt) |
-| `docs/UX.md` | `arsenal-planning:ux-web` or `arsenal-planning:ux-app` | UI projects only; `anchor-files` stops, route to the right `ux-*` |
-| `docs/DESIGN.md` | `arsenal-planning:design` | UI projects only; `anchor-files` stops, route to `design` |
-| `docs/mockups/` (populated) | User generates via Claude Design / Stitch / v0 from `arsenal-planning:mockups` briefs | Soft prompt — visual fidelity output less consistent without |
-| `planning/MARKET_RESEARCH.md` | `arsenal-planning:market-analysis` | `landing` falls back to asking for competitor info inline |
+| `.arsenal/strategy/MVP_SPEC.md` | `arsenal-planning:mvp` | `anchor-files` reads if present; skips if not |
+| `.arsenal/FEATURES.md` or `.arsenal/features/` | `arsenal-planning:features` | `anchor-files` stops; route to `arsenal-planning:features` (or supply path via config / prompt) |
+| `.arsenal/design/UX.md` | `arsenal-planning:ux-web` or `arsenal-planning:ux-app` | UI projects only; `anchor-files` stops, route to the right `ux-*` |
+| `.arsenal/design/DESIGN.md` | `arsenal-planning:design` | UI projects only; `anchor-files` stops, route to `design` |
+| `.arsenal/design/mockups/` (populated) | User generates via Claude Design / Stitch / v0 from `arsenal-planning:mockups` briefs | Soft prompt — visual fidelity output less consistent without |
+| `.arsenal/strategy/MARKET_RESEARCH.md` | `arsenal-planning:market-analysis` | `landing` falls back to asking for competitor info inline |
 
-**Recommended workflow with arsenal-planning installed:** run `arsenal-planning` skills end-to-end through `mockups`, generate mockups into `docs/mockups/`, then run `arsenal-build:anchor-files` and proceed phase-by-phase.
+**Recommended workflow with arsenal-planning installed:** run `arsenal-planning` skills end-to-end through `mockups`, generate mockups into `.arsenal/design/mockups/`, then run `arsenal-build:anchor-files` and proceed phase-by-phase.
 
 **Recommended workflow without arsenal-planning:** produce the artifacts above by hand at the canonical paths and arsenal-build will accept them. The `.arsenal/config.yaml` file can remap directories if your project uses a different layout (see Configuration in README).
 
@@ -148,28 +148,42 @@ Sub-skills (`expand-phase`, `generate-*-briefs`, `run-task-*`, `close-*-phase`) 
 
 ```
 project-root/
-├── CLAUDE.md                          # anchor-files (root index + load-bearing rules)
-├── docs/                              # written by anchor-files
-│   ├── ARCHITECTURE.md
-│   ├── CONVENTIONS.md
-│   ├── DESIGN_SYSTEM.md               # stack-specific impl; UI only
-│   ├── TASKS.md                       # phase scaffold (read+write state machine)
-│   └── mockups/                       # populated by user from arsenal-planning:mockups briefs
-├── .arsenal/
-│   └── config.yaml                    # optional path overrides (see Configuration in README)
-├── .tasks/                            # per-task briefs + phase artifacts (gitignored)
-│   ├── phase-1/
-│   │   ├── task-1-context.md
-│   │   ├── task-1-design.md           # if domain: design
-│   │   ├── task-1-research.md         # if research: yes
-│   │   ├── design-summary.md          # close-design-phase writes this
-│   │   └── spec-amendments.md         # close-feature-phase aggregates Tier 1 amendments
-│   └── archive/                       # close-feature-phase moves completed phases here
-│       └── phase-1/
-│           └── tasks.md
+├── CLAUDE.md                              # anchor-files (root index + load-bearing rules)
+└── .arsenal/
+    ├── config.yaml                        # optional override (rarely needed)
+    ├── ARCHITECTURE.md                    # written by anchor-files
+    ├── CONVENTIONS.md                     # written by anchor-files
+    ├── TASKS.md                           # phase scaffold (read+write state machine)
+    ├── FEATURES.md                        # single-mode (or features/ for split-mode)
+    ├── features/                          # split-mode
+    │   ├── README.md
+    │   └── <slug>.md
+    ├── design/                            # grouped; read as a unit by design pipeline
+    │   ├── UX.md
+    │   ├── DESIGN.md
+    │   ├── DESIGN_SYSTEM.md               # stack-specific impl; UI only
+    │   └── mockups/                       # populated by user from arsenal-planning:mockups briefs
+    ├── tasks/                             # per-task briefs + phase artifacts (gitignored)
+    │   ├── phase-1/
+    │   │   ├── task-1-context.md
+    │   │   ├── task-1-design.md           # if domain: design
+    │   │   ├── task-1-research.md         # if research: yes
+    │   │   ├── design-summary.md          # close-design-phase writes this
+    │   │   └── spec-amendments.md         # close-feature-phase aggregates Tier 1 amendments
+    │   ├── parallel/                      # dispatch-parallel outputs
+    │   └── archive/                       # close-feature-phase moves completed phases here
+    │       └── phase-1/
+    │           └── tasks.md
+    └── strategy/                          # user archive; DENIED during build execution
+        ├── MARKET_RESEARCH.md
+        ├── RESEARCH_PLAN.md
+        ├── MVP_SPEC.md
+        ├── mockup-briefs/
+        ├── GTM_STRATEGY.md
+        └── REVENUE_MODEL.md
 ```
 
-The `docs/` and `planning/` wrapping directories are configurable via `.arsenal/config.yaml`. File names are not.
+All artifacts live under `.arsenal/` at the project root. File names are not configurable; only the `.arsenal/` root location may be overridden via `.arsenal/config.yaml` in unusual cases.
 
 ## Pairs with
 
