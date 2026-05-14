@@ -15,7 +15,7 @@ All arsenal artifacts live under `.arsenal/` at the project root.
 
 | What | Path | Notes |
 |---|---|---|
-| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md, research/{MARKET_RESEARCH,RESEARCH_PLAN}.md |
 | Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
 | Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
 | Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
@@ -229,4 +229,4 @@ The caller's next step is to generate briefs for every task; this skill does not
 | `/arsenal-build:generate-feature-briefs` | Runs *after* this skill, during the feature half (after the design pipeline closes). Reads the `### Feature tasks` subsection and writes per-task context briefs (`.arsenal/tasks/phase-N/task-N-context.md`) with an `## Available components` manifest sourced from design-pipeline commits. |
 | `/arsenal-planning:features` | Upstream — produces the feature specs this skill reads. Updates to feature specs after a phase has been expanded may warrant a `--force` re-expansion. |
 | `/arsenal-planning:ux-web` / `/arsenal-planning:ux-app` / `/arsenal-planning:ux-ios` | Upstream — produce the `UX.md` this skill reads. Updates to `UX.md` after a phase has been expanded may warrant a `--force` re-expansion. |
-| `/arsenal-build:anchor-files` | Upstream — produces the `TASKS.md` placeholder phase scaffold this skill expands. |
+| `/arsenal-build:setup` | Upstream — produces the `TASKS.md` placeholder phase scaffold this skill expands. |

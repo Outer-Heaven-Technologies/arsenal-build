@@ -22,7 +22,7 @@ All arsenal artifacts live under `.arsenal/` at the project root.
 
 | What | Path | Notes |
 |---|---|---|
-| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md, research/{MARKET_RESEARCH,RESEARCH_PLAN}.md |
 | Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
 | Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
 | Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
@@ -54,7 +54,7 @@ This sub-skill assumes its upstream contracts are satisfied:
 |---|---|---|
 | `.arsenal/TASKS.md` with phase block in concrete-tasks state | `expand-phase` upstream | Read the task line and tags (`domain: feature`, `research:`); flip `[ ]` → `[x]` after success |
 | `.arsenal/tasks/phase-{N}/task-{N}-context.md` | `generate-feature-briefs` upstream | Feature-implementer reads it by path; carries available-components manifest |
-| `.arsenal/CONVENTIONS.md`, `.arsenal/ARCHITECTURE.md`, `.arsenal/design/DESIGN_SYSTEM.md` | `anchor-files` upstream | Excerpted into the context brief upstream — this skill does not re-read them |
+| `.arsenal/CONVENTIONS.md`, `.arsenal/ARCHITECTURE.md`, `.arsenal/design/DESIGN_SYSTEM.md` | `setup` upstream | Excerpted into the context brief upstream — this skill does not re-read them |
 | Phase branch checked out (`phase-N/short-description`) | Orchestrator Step 1 | All commits land on this branch; design-pipeline commits are already present |
 | Design-pipeline commits already on the phase branch | `close-design-phase` upstream | The components this task may wire to are reachable in git history; the context brief's available-components manifest enumerates them |
 

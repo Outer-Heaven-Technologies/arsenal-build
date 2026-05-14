@@ -1,6 +1,6 @@
 ---
 name: design
-description: Executes the DESIGN half of a development phase for web/frontend projects by dispatching a fresh-context design-implementer per task with two-stage review (visual fidelity + code quality). Builds components with hardcoded / placeholder data — the downstream feature pipeline (`features`) wires them to real data later in the same phase. Atomic commits, `BLOCKED`/`NEEDS_CONTEXT` escalation, no guessing. Does NOT auto-dispatch impeccable — if a design brief is thin, the design-implementer BLOCKS and the user may invoke `impeccable:shape <surface>` manually before resuming. Calls `close-design-phase` at the end (which does NOT push or PR — the feature pipeline closes the single PR per phase). Runs BEFORE `features` in every phase that has design tasks. Requires `anchor-files` to have run.
+description: Executes the DESIGN half of a development phase for web/frontend projects by dispatching a fresh-context design-implementer per task with two-stage review (visual fidelity + code quality). Builds components with hardcoded / placeholder data — the downstream feature pipeline (`features`) wires them to real data later in the same phase. Atomic commits, `BLOCKED`/`NEEDS_CONTEXT` escalation, no guessing. Does NOT auto-dispatch impeccable — if a design brief is thin, the design-implementer BLOCKS and the user may invoke `impeccable:shape <surface>` manually before resuming. Calls `close-design-phase` at the end (which does NOT push or PR — the feature pipeline closes the single PR per phase). Runs BEFORE `features` in every phase that has design tasks. Requires `setup` to have run.
 ---
 
 # Execute Design — Web
@@ -15,7 +15,7 @@ All arsenal artifacts live under `.arsenal/` at the project root.
 
 | What | Path | Notes |
 |---|---|---|
-| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md, research/{MARKET_RESEARCH,RESEARCH_PLAN}.md |
 | Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
 | Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
 | Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
@@ -78,7 +78,7 @@ The user can also invoke an impeccable audit pass at `close-design-phase` as a s
 | `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, copy locks, anti-patterns |
 | `.arsenal/design/mockups/<screen>.{jsx,tsx,html,png,figma-export.json}` (optional but recommended) | Design briefs translate mockup regions to component implementations |
 
-If TASKS.md / UX.md / DESIGN_SYSTEM.md don't exist, tell the user to run `/arsenal-build:anchor-files` first.
+If TASKS.md / UX.md / DESIGN_SYSTEM.md don't exist, tell the user to run `/arsenal-build:setup` first.
 
 `impeccable` is **not** a prerequisite. If a brief comes back thin, the user may invoke impeccable manually — but the orchestrator never preflights it.
 
@@ -230,8 +230,8 @@ Checkpoint and suggest fresh session.
 
 | Skill | Relationship |
 |-------|-------------|
-| `/arsenal-planning:mvp`, `/arsenal-planning:features`, `/arsenal-planning:ux-*`, `/arsenal-planning:design` | Upstream planning — produce the artifacts `anchor-files` consumes. |
-| `/arsenal-build:anchor-files` | Creates the docs this skill reads. Must run before this skill. |
+| `/arsenal-planning:mvp`, `/arsenal-planning:features`, `/arsenal-planning:ux-*`, `/arsenal-planning:design` | Upstream planning — produce the artifacts `setup` consumes. |
+| `/arsenal-build:setup` | Creates the docs this skill reads. Must run before this skill. |
 | `/arsenal-build:expand-phase` | **Invoked at Step 2 (first half)** as a sub-skill (shared with the feature orchestrator). |
 | `/arsenal-build:generate-design-briefs` | **Invoked at Step 2 (second half)** as a sub-skill. Writes per-task context + design briefs. |
 | `/arsenal-build:run-task-design` | **Invoked at Step 3** as a sub-skill, once per `- [ ]` task in `### Design tasks`. Runs researcher → design-implementer → visual fidelity review → quality review → atomic commit + `[x]`. |

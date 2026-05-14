@@ -13,7 +13,7 @@ All arsenal artifacts live under `.arsenal/` at the project root.
 
 | What | Path | Notes |
 |---|---|---|
-| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md, research/{MARKET_RESEARCH,RESEARCH_PLAN}.md |
 | Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
 | Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
 | Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
@@ -49,9 +49,9 @@ If `.claude/settings.json` doesn't exist or doesn't have a strategy deny, this i
 
 Before building anything, gather context. This research shapes every decision about copy, structure, and design.
 
-**If project planning docs exist (from mvp / anchor-files):**
+**If project planning docs exist (from mvp / setup):**
 - Read `.arsenal/strategy/MVP_SPEC.md` for the core value proposition, target user, and distribution hypothesis
-- Read `.arsenal/strategy/MARKET_RESEARCH.md` (unified executive dossier from `market-analysis`) for audience pain points (§2), demand signals (§1.3), competitor positioning (§3), and SWOT (§5)
+- Read `.arsenal/strategy/research/MARKET_RESEARCH.md` (unified executive dossier from `market-analysis`) for audience pain points (§2), demand signals (§1.3), competitor positioning (§3), and SWOT (§5)
 - The `MARKET_RESEARCH.md` above is the unified executive dossier from `mvp` — it contains the competitive analysis in §3 (Industry Structure & Competition), so competitor positioning + per-competitor breakdowns + feature/pricing matrices + the positioning map are all there
 - Read `.arsenal/design/DESIGN_SYSTEM.md` if it exists for brand/visual direction
 
@@ -152,7 +152,7 @@ Ask the user which stack they prefer. If they don't have a preference, default t
 - Install the PostHog JS snippet in the landing page `<head>` tag
 - Track: page views (autocaptured), CTA clicks, form submissions, scroll depth
 - Set up a conversion event for the primary action (e.g., `posthog.capture('waitlist_signup')`)
-- If the project already has PostHog from Phase 0 of anchor-files, use the same project — don't create a second instance. If the landing page is a separate repo/domain, create a separate PostHog project to keep data clean.
+- If the project already has PostHog from Phase 0 of setup, use the same project — don't create a second instance. If the landing page is a separate repo/domain, create a separate PostHog project to keep data clean.
 - PostHog has an MCP server — Claude Code can query your analytics data directly for insights during GTM execution
 
 **SEO & AI search basics:**
@@ -205,7 +205,7 @@ Then review against this checklist:
 
 | Skill | Relationship |
 |-------|-------------|
-| `/arsenal-build:anchor-files` | Phase 0 may include a landing page task. This skill handles the execution of that task. |
+| `/arsenal-build:setup` | Phase 0 may include a landing page task. This skill handles the execution of that task. |
 | `/arsenal-build:features` | If a task in TASKS.md involves building a landing page, the implementer subagent should use this skill's structure and guidelines. |
 | `/arsenal-planning:gtm` | GTM defines the positioning and channel strategy. This skill turns that positioning into an actual page. |
 | `frontend-design` / Impeccable | Handles the visual execution. This skill handles the conversion structure and copy strategy. They're complementary — this skill says *what* to build, Impeccable says *how it should look*. |

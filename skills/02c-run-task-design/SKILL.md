@@ -22,7 +22,7 @@ All arsenal artifacts live under `.arsenal/` at the project root.
 
 | What | Path | Notes |
 |---|---|---|
-| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md, research/{MARKET_RESEARCH,RESEARCH_PLAN}.md |
 | Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
 | Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
 | Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
@@ -69,7 +69,7 @@ This sub-skill assumes its upstream contracts are satisfied:
 | `.arsenal/TASKS.md` with phase block in concrete-tasks state | `expand-phase` upstream | Read the task line and tags (`domain: design`, `research:`); flip `[ ]` → `[x]` after success |
 | `.arsenal/tasks/phase-{N}/task-{N}-context.md` | `generate-design-briefs` upstream | Design-implementer reads it by path |
 | `.arsenal/tasks/phase-{N}/task-{N}-design.md` | `generate-design-briefs` upstream | Design-implementer + visual-fidelity reviewer read it; the brief carries the token map, variant matrix, and mockup pointer |
-| `.arsenal/CONVENTIONS.md`, `.arsenal/ARCHITECTURE.md`, `.arsenal/design/DESIGN_SYSTEM.md`, `.arsenal/design/DESIGN.md` | `anchor-files` upstream | Excerpted into the briefs upstream — this skill does not re-read them in full |
+| `.arsenal/CONVENTIONS.md`, `.arsenal/ARCHITECTURE.md`, `.arsenal/design/DESIGN_SYSTEM.md`, `.arsenal/design/DESIGN.md` | `setup` upstream | Excerpted into the briefs upstream — this skill does not re-read them in full |
 | `.arsenal/design/mockups/<screen>.{jsx,tsx,html,png,figma-export.json}` (when applicable) | Project | Visual fidelity reviewer compares the implemented code to the mockup at the cited region |
 | Phase branch checked out (`phase-N/short-description`) | Orchestrator Step 1 | All commits land on this branch |
 

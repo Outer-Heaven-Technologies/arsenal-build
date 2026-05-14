@@ -1,6 +1,6 @@
 ---
 name: features
-description: Executes the FEATURE half of a development phase for web/frontend projects (Next.js, Astro, Vite, Node, Python, etc.) by dispatching a fresh-context feature-implementer per task with two-stage review (spec compliance + code quality). Atomic commits, `BLOCKED`/`NEEDS_CONTEXT` escalation, no guessing. The component-boundary rule enforces extend-not-redesign on design-pipeline-committed components. Does NOT call impeccable. Runs AFTER `design` + `close-design-phase` have completed for the same phase. Calls `close-feature-phase` at the end. Requires `anchor-files` to have run. Use when the design half of a phase is committed and you're ready to wire the components to real data.
+description: Executes the FEATURE half of a development phase for web/frontend projects (Next.js, Astro, Vite, Node, Python, etc.) by dispatching a fresh-context feature-implementer per task with two-stage review (spec compliance + code quality). Atomic commits, `BLOCKED`/`NEEDS_CONTEXT` escalation, no guessing. The component-boundary rule enforces extend-not-redesign on design-pipeline-committed components. Does NOT call impeccable. Runs AFTER `design` + `close-design-phase` have completed for the same phase. Calls `close-feature-phase` at the end. Requires `setup` to have run. Use when the design half of a phase is committed and you're ready to wire the components to real data.
 ---
 
 # Execute Features — Web
@@ -15,7 +15,7 @@ All arsenal artifacts live under `.arsenal/` at the project root.
 
 | What | Path | Notes |
 |---|---|---|
-| Strategy archive (denied during build) | `.arsenal/strategy/` | MARKET_RESEARCH.md, RESEARCH_PLAN.md, MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md |
+| Strategy archive (denied during build) | `.arsenal/strategy/` | MVP_SPEC.md, mockup-briefs/, GTM_STRATEGY.md, REVENUE_MODEL.md, research/{MARKET_RESEARCH,RESEARCH_PLAN}.md |
 | Feature specs | `.arsenal/FEATURES.md` (single-mode) or `.arsenal/features/<slug>.md` (split-mode) | Gated per phase via `.claude/settings.json` |
 | Project anchor docs | `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` | Always readable during build |
 | Design reference set | `.arsenal/design/{UX,DESIGN,DESIGN_SYSTEM}.md` + `.arsenal/design/mockups/` | Always readable during build |
@@ -69,7 +69,7 @@ The rule is enforced at the per-task level (in `run-task-feature` and its featur
 | `.arsenal/FEATURES.md` (single mode) or `.arsenal/features/<slug>.md` files (split mode) | Per-feature acceptance criteria, states, data lifecycle — drives feature-domain task expansion |
 | Phase branch with design-pipeline commits | The components this skill's tasks may wire to must be present in git history |
 
-If TASKS.md / ARCHITECTURE.md / CONVENTIONS.md don't exist, tell the user to run `/arsenal-build:anchor-files` first. If the design half hasn't completed for this phase, run `/arsenal-build:design N` first.
+If TASKS.md / ARCHITECTURE.md / CONVENTIONS.md don't exist, tell the user to run `/arsenal-build:setup` first. If the design half hasn't completed for this phase, run `/arsenal-build:design N` first.
 
 ## Runtime Environment
 
@@ -242,8 +242,8 @@ Checkpoint: summarize progress, note remaining tasks, suggest the user start a f
 
 | Skill | Relationship |
 |-------|-------------|
-| `/arsenal-planning:mvp`, `/arsenal-planning:features`, `/arsenal-planning:ux-*`, `/arsenal-planning:design` | Upstream planning — produce the artifacts `anchor-files` consumes. |
-| `/arsenal-build:anchor-files` | Creates the docs this skill reads. Must run before this skill. |
+| `/arsenal-planning:mvp`, `/arsenal-planning:features`, `/arsenal-planning:ux-*`, `/arsenal-planning:design` | Upstream planning — produce the artifacts `setup` consumes. |
+| `/arsenal-build:setup` | Creates the docs this skill reads. Must run before this skill. |
 | `/arsenal-build:design` | **Runs before this skill in every phase that has design tasks.** Sibling orchestrator. Commits the visual components this skill's tasks may wire to. Shares the same phase branch. |
 | `/arsenal-build:close-design-phase` | Runs after `design` and before this skill. Returns the branch (no push, no PR). |
 | `/arsenal-build:expand-phase` | Invoked when needed at Step 2 (usually already run by `design`). |

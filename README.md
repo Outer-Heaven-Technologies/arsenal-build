@@ -10,7 +10,7 @@
 A Claude Code plugin. The execution half of the arsenal pipeline for **web/frontend projects** (Next.js, Astro, Vite, Node, Python, etc.). Takes planning artifacts and ships real code:
 
 ```
-planning artifacts (FEATURES, UX, DESIGN, mockups, MVP_SPEC) → anchor-files → per-phase design + feature pipelines → landing page
+planning artifacts (FEATURES, UX, DESIGN, mockups, MVP_SPEC) → setup → per-phase design + feature pipelines → landing page
 ```
 
 Each phase splits into **design tasks** (visual components with hardcoded data) and **feature tasks** (wire components to real data). The two halves run sequentially on the same branch, share a single PR, and enforce a strict component boundary: the feature pipeline may extend components but never redesign them.
@@ -43,12 +43,12 @@ ln -sfn ~/Dev/arsenal-build/skills ~/.claude/plugins/cache/arsenal-build/arsenal
 
 Two ways:
 
-1. **Slash command** — `/arsenal-build:anchor-files`, `/arsenal-build:design 1`, `/arsenal-build:features 2`, etc.
+1. **Slash command** — `/arsenal-build:setup`, `/arsenal-build:design 1`, `/arsenal-build:features 2`, etc.
 2. **Natural language** — Claude reads each skill's `description` and auto-fires:
-   - "Set up the project anchor" → `arsenal-build:anchor-files`
+   - "Set up the project" / "Bootstrap the build pipeline" → `arsenal-build:setup`
    - "Begin work on phase 1" → `arsenal-build:design` (design half first), then `arsenal-build:features` (feature half)
 
-The orchestrators (`anchor-files`, `design`, `features`, `landing`) are the user-facing entry points. The sub-skills (`expand-phase`, `generate-design-briefs`, `generate-feature-briefs`, `run-task-design`, `run-task-feature`, `close-design-phase`, `close-feature-phase`) are dispatched by the orchestrators but are also independently invokable for surgical work when upstream specs change mid-phase.
+The orchestrators (`setup`, `design`, `features`, `landing`) are the user-facing entry points. The sub-skills (`expand-phase`, `generate-design-briefs`, `generate-feature-briefs`, `run-task-design`, `run-task-feature`, `close-design-phase`, `close-feature-phase`) are dispatched by the orchestrators but are also independently invokable for surgical work when upstream specs change mid-phase.
 
 ## The pipeline
 
@@ -56,7 +56,7 @@ The orchestrators (`anchor-files`, `design`, `features`, `landing`) are the user
 planning artifacts (from arsenal-planning or any source)
                 │
                 ▼
-        anchor-files  ──►  CLAUDE.md + .arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md + .arsenal/design/DESIGN_SYSTEM.md
+        setup  ──►  CLAUDE.md + .arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md + .arsenal/design/DESIGN_SYSTEM.md
                 │
                 ▼
    per-phase design half  ──►  per-phase feature half  ──►  single PR per phase
@@ -77,13 +77,13 @@ planning artifacts (from arsenal-planning or any source)
 
 > **Impeccable boundaries.** Not dispatched from any feature-pipeline skill. Not auto-dispatched from `run-task-design` (the user invokes manually if blocked on an under-specified design). May be invoked from `close-design-phase` as a phase-level audit, gateable (the user must opt in).
 
-> **Cross-plugin handoff.** Upstream of `anchor-files`, you need `.arsenal/FEATURES.md` (or `.arsenal/features/`), `.arsenal/design/UX.md`, and `.arsenal/design/DESIGN.md`. These are produced by [arsenal-planning](https://github.com/Outer-Heaven-Technologies/arsenal-planning) (skills `features`, `ux-web` or `ux-app`, `design`). If artifacts are missing, `anchor-files` stops and routes to the right arsenal-planning skill — or you can produce them by hand at the canonical paths.
+> **Cross-plugin handoff.** Upstream of `setup`, you need `.arsenal/FEATURES.md` (or `.arsenal/features/`), `.arsenal/design/UX.md`, and `.arsenal/design/DESIGN.md`. These are produced by [arsenal-planning](https://github.com/Outer-Heaven-Technologies/arsenal-planning) (skills `features`, `ux-web` or `ux-app`, `design`). If artifacts are missing, `setup` stops and routes to the right arsenal-planning skill — or you can produce them by hand at the canonical paths.
 
 ## Skill table
 
 | # | Skill | Stage | What it does |
 |---|-------|-------|--------------|
-| 1 | [`anchor-files`](#anchor-files--consolidate-planning-into-the-agent-reference-layer) | Bridge | Consolidate upstream planning into the agent reference layer — `CLAUDE.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `DESIGN_SYSTEM.md`, `TASKS.md`. Hard-requires upstream planning. |
+| 1 | [`setup`](#setup--bootstrap-the-project-for-the-build-pipeline) | Bridge | Bootstrap a project for the build pipeline — `CLAUDE.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `DESIGN_SYSTEM.md`, `TASKS.md`, and (when missing) lightweight `FEATURES.md` / `UX.md` / `DESIGN.md`. Three starting points: consume existing planning artifacts (A), ingest user-pointed source docs (B), or interview from scratch (C). arsenal-planning is the recommended deep path. |
 | 2a | [`design`](#design--build-visual-components) | Orchestrator | **Design-half entry point.** Loops design tasks for a phase (visual components with hardcoded data). Runs FIRST in every phase that has design tasks. Dispatches the four sub-skills below in order. **Does NOT push or PR.** |
 |  | ↳ `expand-phase` *(shared sub-skill)* | sub-skill | Turns phase placeholders into a concrete tagged task list grouped under `### Design tasks` / `### Feature tasks`. Tags: `domain: design \| feature`, `research:`. Idempotent. Independently invokable for surgical re-expansion. Args: `--phase`, `--scope`, `--force`. |
 |  | ↳ `generate-design-briefs` | sub-skill | Writes per-task context briefs (≤3k tokens) + design briefs (≤1.7k tokens) for `domain: design` tasks. Design source is read directly from mockups + `DESIGN_SYSTEM.md`. Idempotent; `--force` regenerates. |
@@ -102,7 +102,7 @@ See [`PIPELINE.md`](PIPELINE.md) for the full artifact dependency graph and entr
 
 ## Load-bearing rules
 
-Both rules live in the project's `CLAUDE.md` (written by `anchor-files`) so every subagent inherits them. They're enforced in the feature-implementer prompt and feature-pipeline spec reviewer.
+Both rules live in the project's `CLAUDE.md` (written by `setup`) so every subagent inherits them. They're enforced in the feature-implementer prompt and feature-pipeline spec reviewer.
 
 - **Component boundary.** The feature pipeline may extend a component (new prop, variant, or state the data layer needs) but never redesign it (visual treatment, spacing, typography, color, motion). Commits that touch a component file include a `Component extended: <path> — <why>` note. Purely visual changes BLOCK with redirect to the design pipeline.
 
@@ -156,31 +156,41 @@ Each section follows the same shape: a one-line purpose, the steps it runs, how 
 
 ---
 
-### `anchor-files` — consolidate planning into the agent reference layer
+### `setup` — bootstrap the project for the build pipeline
 
-Bridge between planning (arsenal-planning, or hand-authored equivalents) and execution (`design` / `features`). Consolidates upstream planning into the **agent reference layer**: `CLAUDE.md` at root plus `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` and `.arsenal/design/DESIGN_SYSTEM.md`. These files are read by every Claude session opening the project and sliced by the brief generators that drive the build pipeline.
+Bootstrap a project for the arsenal-build pipeline. Produces the **agent reference layer**: `CLAUDE.md` at root plus `.arsenal/{ARCHITECTURE,CONVENTIONS,TASKS}.md` and `.arsenal/design/DESIGN_SYSTEM.md`. When upstream planning artifacts are missing, also produces lightweight versions of `FEATURES.md`, `UX.md`, and `DESIGN.md` at canonical paths so the build pipeline can run regardless of starting state.
 
 This is not "generate docs." It's "design the structured reference surface that every downstream agent reads from for the lifetime of the project."
 
-**Hard-required upstream (no fallback)**
+**Three starting points**
 
-The build pipeline depends on planning being complete. Missing artifacts → skill stops and routes to the corresponding arsenal-planning skill (or asks you to point at the missing artifact via config or prompt) rather than papering over the gap.
+Setup runs against whatever state the project is in. Per missing planning artifact, the user picks the path. Different artifacts can take different paths in the same run.
+
+| Path | Trigger | What setup does |
+|---|---|---|
+| **A — Consume** | `FEATURES`, `UX` (UI), `DESIGN` (UI) already exist | Reads them as-is. **Recommended path** — arsenal-planning produces the deepest specs. |
+| **B — Ingest** | An artifact is missing but the user has related docs (PRD, Notion brief, hand-written spec, Slack thread) | Dispatches a subagent to read user-pointed docs and write a **lightweight** version with a `Generated by setup` banner. |
+| **C — Interview** | An artifact is missing and there's no doc to point at | Runs a short intake interview, then dispatches a subagent to write a **lightweight** version from the transcript, with the banner. |
+
+Generated planning artifacts always carry a `Generated by setup — lightweight bootstrap` banner naming the source. The downstream build pipeline reads them as-is; the banner is the user's signal that running the corresponding `arsenal-planning:<skill>` later is a one-step deepening operation.
 
 | Artifact | Required | If missing |
 |---|---|---|
-| `.arsenal/FEATURES.md` or `.arsenal/features/` | Yes | Stop. Route to `arsenal-planning:features` (or ask for path). |
-| `.arsenal/design/UX.md` | UI projects only | Stop. Route to `arsenal-planning:ux-web` or `arsenal-planning:ux-app`. |
-| `.arsenal/design/DESIGN.md` | UI projects only | Stop. Route to `arsenal-planning:design`. |
-| `.arsenal/strategy/MVP_SPEC.md` | Optional | Read if present; skip if not. |
+| `.arsenal/FEATURES.md` or `.arsenal/features/` | Yes | User picks A (run arsenal-planning first), B (ingest docs), or C (interview). |
+| `.arsenal/design/UX.md` | UI projects only | Same A / B / C choice. |
+| `.arsenal/design/DESIGN.md` | UI projects only | Same A / B / C choice. |
+| `.arsenal/strategy/MVP_SPEC.md` | Optional | Read if present; skip if not. Setup never generates this — arsenal-planning's `mvp` owns it. |
 | `.arsenal/design/mockups/` | Recommended for UI | Soft prompt: run `arsenal-planning:mockups` to generate briefs, then feed each into Claude Design / Stitch / Open Design / v0. |
 
 **How it works**
 
-1. **Verify preconditions.** Hard-check the artifacts above (after resolving any `.arsenal/config.yaml` overrides). No discovery interview if anything required is missing.
-2. **Stack-only discovery.** ~6–8 questions max — framework, styling, database/CMS, auth, state management, hosting, key integrations, project intent. Skip anything answered by existing artifacts (e.g., existing `package.json`).
-3. **Generate anchor files.** Dependency order — ARCHITECTURE → CONVENTIONS → DESIGN_SYSTEM → TASKS → CLAUDE.
-4. **Set up mockup slot.** `mkdir -p .arsenal/design/mockups`. Surface its absence in the final report if empty.
-5. **Review + handoff.** Files created, sizes flagged, next step (`design 1`).
+1. **Probe state.** Check upstream artifacts at canonical paths. Build a per-artifact state map.
+2. **Decide path per artifact.** For each required-but-missing artifact, ask the user A / B / C.
+3. **Execute paths.** Path A reads existing files directly. Path B dispatches `references/ingest-from-docs-prompt.md` per artifact. Path C runs an intake interview in the main session, then dispatches `references/bootstrap-from-intake-prompt.md` per artifact. Each subagent writes one lightweight planning artifact with the banner.
+4. **Stack-only discovery.** ~6–8 questions max — framework, styling, database/CMS, auth, state management, hosting, key integrations, project intent. Skip anything obvious from context.
+5. **Generate build anchors.** Dependency order — ARCHITECTURE → CONVENTIONS → DESIGN_SYSTEM → TASKS → CLAUDE.
+6. **Set up mockup slot.** `mkdir -p .arsenal/design/mockups`. Surface its absence in the final report if empty.
+7. **Review + handoff.** Files created, sizes flagged, per-file path provenance (A / B / C), deepening invite for any B / C artifact, next step (`/arsenal-build:design 1`).
 
 **File sizing — load-bearing**
 
@@ -207,15 +217,16 @@ CLAUDE.md is the only place where the build pipeline's load-bearing rules appear
 - **`TASKS.md` is a phase scaffold, not a complete task list.** Phase entries are placeholders that `expand-phase` expands on demand against fresh context.
 - **`DESIGN_SYSTEM.md` is stack-specific implementation** (CSS vars, theme tokens). `DESIGN.md` stays canonical and untouched.
 - **`CONVENTIONS.md` mandates concrete sections** — KISS / YAGNI / Functional First, "Before Writing Any Code", anti-patterns — with **real working code** for the chosen stack, not pseudocode.
-- **In split-features mode**, `anchor-files` reads only `.arsenal/features/README.md`, never individual feature files.
+- **In split-features mode**, `setup` reads only `.arsenal/features/README.md`, never individual feature files.
 
 **How to use it**
 
-- **Slash command:** `/arsenal-build:anchor-files`
-- **Or trigger with:** "set up project anchor", "anchor the codebase", "scaffold project docs", "set up CLAUDE.md", "bridge planning to build"
+- **Slash command:** `/arsenal-build:setup`
+- **Or trigger with:** "set up the project", "set up the build pipeline", "bootstrap the project", "scaffold project docs", "set up CLAUDE.md", "ready to start building", "bridge planning to build"
 
-- **Inputs (hard-required):** `.arsenal/FEATURES.md` or `.arsenal/features/`, `.arsenal/design/UX.md` (UI), `.arsenal/design/DESIGN.md` (UI). `MVP_SPEC.md` optional.
-- **Outputs:** `CLAUDE.md` at root; `.arsenal/ARCHITECTURE.md`, `.arsenal/CONVENTIONS.md`, `.arsenal/design/DESIGN_SYSTEM.md` (UI only), `.arsenal/TASKS.md`. Creates `.arsenal/design/mockups/` directory.
+- **Inputs:** any combination of `.arsenal/FEATURES.md` (or `.arsenal/features/`), `.arsenal/design/UX.md` (UI), `.arsenal/design/DESIGN.md` (UI). Missing inputs trigger Path B (user-pointed docs) or Path C (interview). `MVP_SPEC.md` optional context.
+- **Outputs (always):** `CLAUDE.md` at root; `.arsenal/ARCHITECTURE.md`, `.arsenal/CONVENTIONS.md`, `.arsenal/design/DESIGN_SYSTEM.md` (UI only), `.arsenal/TASKS.md`. Creates `.arsenal/design/mockups/` directory.
+- **Outputs (Paths B / C only):** lightweight `.arsenal/FEATURES.md`, `.arsenal/design/UX.md`, `.arsenal/design/DESIGN.md` at canonical paths, each carrying the `Generated by setup` banner.
 
 ---
 
@@ -292,7 +303,7 @@ Builds a landing page designed to convert — researched first, structured secon
 **Defaults the skill picks for you (swappable):**
 
 - **Email capture:** Kit (ConvertKit) — free up to 10k subs, project-specific tags.
-- **Analytics:** PostHog — re-uses Phase 0 instance if `anchor-files` already set one up.
+- **Analytics:** PostHog — re-uses Phase 0 instance if `setup` already set one up.
 - **Repo:** lives in a separate repo from the core product, independent deploys.
 
 **Hard rules the skill enforces (non-negotiable):**
@@ -313,7 +324,7 @@ Out of scope: multi-page marketing sites, paid-ad strategy, ongoing A/B testing.
 
 Also auto-fires from a TASKS.md task that mentions a landing page.
 
-- **Inputs:** any of `.arsenal/strategy/MVP_SPEC.md`, `.arsenal/strategy/MARKET_RESEARCH.md` (unified dossier), `.arsenal/design/DESIGN_SYSTEM.md` (optional). Otherwise the skill asks.
+- **Inputs:** any of `.arsenal/strategy/MVP_SPEC.md`, `.arsenal/strategy/research/MARKET_RESEARCH.md` (unified dossier), `.arsenal/design/DESIGN_SYSTEM.md` (optional). Otherwise the skill asks.
 - **Outputs:** a deployable landing page repo, or a `/coming-soon` route inside an existing app — actual code, not specs.
 
 ---
@@ -383,7 +394,7 @@ arsenal-build/
 ├── .claude-plugin/
 │   └── plugin.json                        # plugin manifest (name: arsenal-build)
 ├── skills/                                # folder names are numbered by pipeline order; frontmatter `name:` is the bare slug
-│   ├── 01-anchor-files/SKILL.md           # name: anchor-files (bridge — runs once before phases)
+│   ├── 01-setup/SKILL.md           # name: setup (bridge — runs once before phases)
 │   │
 │   ├── # Design half — 02 family:
 │   ├── 02-design/SKILL.md                 # name: design (orchestrator)
